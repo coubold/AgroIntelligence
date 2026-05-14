@@ -1,0 +1,238 @@
+/* ========================================================================
+   BOLD CHROME · Header + footer unificados con identidad Bold
+   El CSS original del prototipo se conserva en su totalidad.
+   Este archivo SOLO sobrescribe el chrome (header/nav/footer) y agrega
+   tipografías Bold-friendly. El contenido del body se mantiene intacto.
+   ======================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Varela+Round&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bold-cyan: #06ffe1;
+  --bold-magenta: #f85cff;
+  --bold-black: #000000;
+  --bold-ink: #0a0e0d;
+  --bold-surface: #111716;
+  --bold-line: rgba(6, 255, 225, 0.15);
+  --bold-text: #ffffff;
+  --bold-text-dim: #8a9290;
+  --bold-display: 'Varela Round', system-ui, sans-serif;
+  --bold-body: 'Manrope', system-ui, sans-serif;
+  --bold-mono: 'JetBrains Mono', monospace;
+}
+
+/* ======================================================================
+   HEADER BOLD · reemplaza .hdr y .suite-header
+   ====================================================================== */
+
+.bold-hdr {
+  background: var(--bold-black);
+  color: var(--bold-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  border-bottom: 1px solid var(--bold-line);
+  font-family: var(--bold-body);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.bold-hdr::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 8% 50%, rgba(6, 255, 225, 0.08), transparent 30%),
+    radial-gradient(circle at 92% 50%, rgba(248, 92, 255, 0.05), transparent 30%);
+  pointer-events: none;
+}
+
+.bold-hdr > * { position: relative; z-index: 1; }
+
+.bold-hdr__brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  color: var(--bold-text);
+}
+
+.bold-hdr__brand-mark {
+  font-family: var(--bold-display);
+  font-size: 1.4rem;
+  color: var(--bold-cyan);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.bold-hdr__brand-mark::after {
+  content: '>';
+  font-weight: 700;
+  margin-left: -2px;
+}
+
+.bold-hdr__brand-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--bold-line);
+}
+
+.bold-hdr__product {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1;
+}
+
+.bold-hdr__product-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--bold-text);
+  letter-spacing: -0.01em;
+}
+
+.bold-hdr__product-tag {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--bold-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.bold-hdr__nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.bold-hdr__nav a {
+  color: var(--bold-text-dim);
+  text-decoration: none;
+  font-size: 0.83rem;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 4px;
+  position: relative;
+  transition: color 150ms ease, background 150ms ease;
+  letter-spacing: -0.005em;
+}
+
+.bold-hdr__nav a:hover {
+  color: var(--bold-cyan);
+  background: rgba(6, 255, 225, 0.05);
+}
+
+.bold-hdr__nav a.is-active {
+  color: var(--bold-cyan);
+  background: rgba(6, 255, 225, 0.08);
+}
+
+.bold-hdr__nav a.is-active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 1px;
+  background: var(--bold-cyan);
+  box-shadow: 0 0 8px var(--bold-cyan);
+}
+
+.bold-hdr__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.7rem;
+  color: var(--bold-text-dim);
+  font-family: var(--bold-mono);
+  letter-spacing: 0.05em;
+}
+
+.bold-hdr__meta-pill {
+  border: 1px solid var(--bold-line);
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--bold-cyan);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  background: rgba(6, 255, 225, 0.04);
+}
+
+/* Subtle scan line on hover/active across the bar */
+.bold-hdr__pulse {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--bold-cyan) 50%,
+    transparent 100%);
+  opacity: 0.4;
+}
+
+/* ======================================================================
+   BACK BAR · barra mínima de retorno al menú al pie de cada prototipo
+   ====================================================================== */
+
+.bold-back-bar {
+  background: var(--bold-black);
+  color: var(--bold-text-dim);
+  padding: 18px 24px;
+  font-family: var(--bold-body);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--bold-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.bold-back-bar__link {
+  color: var(--bold-cyan);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: opacity 200ms ease;
+}
+.bold-back-bar__link:hover { opacity: 0.7; }
+
+.bold-back-bar__chev {
+  font-family: var(--bold-display);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.bold-back-bar__motto {
+  font-family: var(--bold-display);
+  color: var(--bold-text);
+  font-size: 0.95rem;
+}
+.bold-back-bar__motto em {
+  color: var(--bold-magenta);
+  font-style: normal;
+}
+
+/* ======================================================================
+   RESPONSIVE
+   ====================================================================== */
+
+@media (max-width: 900px) {
+  .bold-hdr { height: auto; flex-wrap: wrap; padding: 12px 16px; gap: 8px; }
+  .bold-hdr__nav { order: 3; width: 100%; justify-content: flex-start; overflow-x: auto; }
+  .bold-hdr__meta { font-size: 0.65rem; gap: 8px; }
+  .bold-hdr__product-tag { display: none; }
+}
