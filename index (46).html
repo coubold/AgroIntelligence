@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoldOS · Agro Intelligence Suite</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --cyan: #06ffe1;
+    --magenta: #f85cff;
+    --black: #000;
+    --ink: #0a0e0d;
+    --surface: #111716;
+    --line: rgba(6, 255, 225, 0.15);
+    --line-strong: rgba(6, 255, 225, 0.35);
+    --text: #fff;
+    --text-dim: #8a9290;
+    --text-fade: #4a524f;
+    --display: 'Varela Round', system-ui, sans-serif;
+    --body: 'Manrope', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: var(--body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Ambiente sutil para que no quede plano */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(6, 255, 225, 0.08), transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(248, 92, 255, 0.05), transparent 50%);
+    z-index: 0;
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(6, 255, 225, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 255, 225, 0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+    z-index: 0;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at center, black 0%, transparent 85%);
+  }
+
+  main { position: relative; z-index: 1; flex: 1; }
+
+  /* HEADER */
+  .hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 48px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .hdr__brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+    color: var(--text);
+  }
+
+  .hdr__logo {
+    font-family: var(--display);
+    font-size: 1.5rem;
+    color: var(--cyan);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+  }
+  .hdr__logo::after {
+    content: '>';
+    font-weight: 700;
+  }
+
+  .hdr__sep {
+    width: 1px;
+    height: 22px;
+    background: var(--line-strong);
+  }
+
+  .hdr__name {
+    font-family: var(--body);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.005em;
+  }
+
+  .hdr__meta {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* GRID DE ACCESO */
+  .access {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 64px 48px;
+    width: 100%;
+  }
+
+  .access__intro {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .access__intro::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+
+  .card {
+    background: var(--ink);
+    padding: 32px 28px 28px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+    position: relative;
+    overflow: hidden;
+    transition: background 250ms ease;
+  }
+  .card:hover { background: var(--surface); }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--cyan);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 350ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  .card:hover::before { transform: scaleX(1); }
+
+  .card__no {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-fade);
+    letter-spacing: 0.16em;
+    margin-bottom: 20px;
+  }
+
+  .card__name {
+    font-family: var(--display);
+    font-size: 1.35rem;
+    color: var(--text);
+    line-height: 1.1;
+    margin-bottom: 8px;
+    letter-spacing: -0.015em;
+    transition: color 200ms ease;
+  }
+  .card:hover .card__name { color: var(--cyan); }
+
+  .card__tag {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .card__cta {
+    margin-top: 24px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--cyan);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.02em;
+  }
+  .card__cta::after {
+    content: '>';
+    font-family: var(--display);
+    font-size: 1.05rem;
+    transition: transform 200ms ease;
+  }
+  .card:hover .card__cta::after { transform: translateX(5px); }
+
+  /* FOOTER */
+  .ftr {
+    padding: 24px 48px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-fade);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 720px) {
+    .hdr, .access, .ftr { padding-left: 20px; padding-right: 20px; }
+    .hdr { padding-top: 20px; padding-bottom: 20px; }
+    .access { padding-top: 40px; padding-bottom: 40px; }
+    .hdr__meta { display: none; }
+    .grid { grid-template-columns: 1fr; }
+    .ftr { flex-direction: column; gap: 8px; }
+  }
+
+  /* ANIMACIONES */
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .access > * { animation: fadeUp 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards; }
+  .access__intro { animation-delay: 100ms; }
+  .grid { animation-delay: 200ms; }
+
+</style>
+</head>
+<body>
+
+<main>
+
+  <header class="hdr">
+    <a href="index.html" class="hdr__brand">
+      <span class="hdr__logo">BOLD</span>
+      <span class="hdr__sep"></span>
+      <span class="hdr__name">Agro Intelligence Suite</span>
+    </a>
+    <span class="hdr__meta">Campaña 2025/26</span>
+  </header>
+
+  <section class="access">
+    <p class="access__intro">Seleccionar funcionalidad</p>
+
+    <div class="grid">
+
+      <a href="oportunidad.html" class="card">
+        <div class="card__no">P1</div>
+        <h2 class="card__name">Estimación de Oportunidad</h2>
+        <p class="card__tag">Detección de demanda crediticia sobre el territorio.</p>
+        <span class="card__cta">Abrir</span>
+      </a>
+
+      <a href="precalificacion.html" class="card">
+        <div class="card__no">P2</div>
+        <h2 class="card__name">Precalificación Crediticia</h2>
+        <p class="card__tag">Scoring agronómico-financiero por cliente.</p>
+        <span class="card__cta">Abrir</span>
+      </a>
+
+      <a href="info-agronomica.html" class="card">
+        <div class="card__no">P3</div>
+        <h2 class="card__name">Información Agronómica</h2>
+        <p class="card__tag">Ficha agronómica completa para decisión de crédito.</p>
+        <span class="card__cta">Abrir</span>
+      </a>
+
+      <a href="cartera.html" class="card">
+        <div class="card__no">P4</div>
+        <h2 class="card__name">Seguimiento de Cartera</h2>
+        <p class="card__tag">Monitoreo en vivo del portfolio agro.</p>
+        <span class="card__cta">Abrir</span>
+      </a>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="ftr">
+  <span>BoldOS · Demo no productiva</span>
+  <span id="footerDate"></span>
+</footer>
+
+<script>
+  const dateEl = document.getElementById('footerDate');
+  if (dateEl) {
+    const now = new Date();
+    dateEl.textContent = now.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+</script>
+
+</body>
+</html>
