@@ -3,1262 +3,845 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bold Intelligence — Cono Sur</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>BoldOS · Agro Intelligence Suite</title>
+<meta name="description" content="Suite de inteligencia agronómica para entidades financieras. Cuatro motores de decisión sobre el portfolio agro.">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --c-primary: #0a1628;
-  --c-primary-mid: #162d50;
-  --c-primary-light: #eef3fa;
-  --c-accent: #00e5a0;
-  --c-accent-soft: #d0fae9;
-  --c-secondary: #4a90d9;
-  --c-secondary-light: #e8f0fe;
-  --c-purple: #7c5cfc;
-  --c-purple-light: #f0ebfe;
-  --c-warning: #f5a623;
-  --c-danger: #e74c3c;
-  --c-success: #00c853;
-  --c-bg: #f0f2f5;
-  --c-surface: #ffffff;
-  --c-border: #e2e6eb;
-  --c-text: #0d1117;
-  --c-text-secondary: #4a5568;
-  --c-text-muted: #8695a4;
-  --c-soja: #00c853;
-  --c-trigo: #f5a623;
-  --c-maiz: #ff7043;
-  --c-girasol: #ffca28;
-  --sp-xs: 4px; --sp-sm: 8px; --sp-md: 16px; --sp-lg: 24px; --sp-xl: 32px; --sp-2xl: 48px;
-  --r-sm: 8px; --r-md: 12px; --r-lg: 20px;
-  --sh-sm: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
-  --sh-md: 0 4px 16px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
-  --sh-lg: 0 12px 40px rgba(0,0,0,.1);
-  --ff: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --ff-mono: 'JetBrains Mono', monospace;
-  --fw-normal: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{font-family:var(--ff);color:var(--c-text);background:var(--c-bg);line-height:1.5;-webkit-font-smoothing:antialiased}
-.container{max-width:1440px;margin:0 auto;padding:0 var(--sp-lg)}
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* ═══ HEADER ═══ */
-.header{
-  background: linear-gradient(135deg, #050d1a 0%, #0a1628 30%, #0f2038 60%, #162d50 100%);
-  color:#fff;padding:28px 0;position:relative;overflow:hidden;
-  border-bottom: 2px solid var(--c-accent);
-}
-.header::before{
-  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
-  background:
-    radial-gradient(ellipse at 30% 50%, rgba(0,229,160,.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 75% 30%, rgba(74,144,217,.05) 0%, transparent 40%);
-  pointer-events:none;
-}
-.header::after{
-  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg, transparent, var(--c-accent), transparent);
-}
-.header-inner{
-  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--sp-md);position:relative;z-index:1
-}
-.header-left{display:flex;align-items:center;gap:20px;flex:1}
-.header-brand-logo{height:32px;opacity:.95;filter:brightness(1.1)}
-.header-brand h1{
-  font-size:1.55rem;font-weight:var(--fw-bold);letter-spacing:-0.5px;line-height:1.2
-}
-.header-brand h1 .bold-mark{color:var(--c-accent);font-weight:var(--fw-bold)}
-.header-brand h1 .pipe{color:rgba(255,255,255,.25);font-weight:300;margin:0 4px}
-.header-brand h1 span{color:rgba(255,255,255,.55);font-weight:var(--fw-normal);font-size:1.15rem}
-.header-brand p{font-size:.82rem;opacity:.55;margin-top:4px;max-width:520px;line-height:1.55}
-.powered-by{font-size:.68rem;opacity:.35;margin-top:6px;letter-spacing:.5px;font-family:var(--ff-mono)}
-.powered-by b{color:var(--c-accent);opacity:1}
-.header-right{display:flex;align-items:center;gap:24px}
-.header-meta{display:flex;gap:6px;align-items:center;font-size:.75rem;flex-wrap:wrap}
-.header-meta .tag{
-  background:rgba(0,229,160,.08);color:var(--c-accent);
-  padding:5px 12px;border-radius:20px;
-  border:1px solid rgba(0,229,160,.15);font-weight:var(--fw-semibold);
-  font-size:.72rem;letter-spacing:.3px;
-  backdrop-filter:blur(4px);
-}
-/* ═══ FILTERS ═══ */
-.filters-bar{
-  background:var(--c-surface);
-  border-bottom:1px solid var(--c-border);
-  padding:var(--sp-md) 0;
-  position:sticky;top:0;z-index:900;
-  box-shadow:0 2px 8px rgba(0,0,0,.04)
-}
-.filters-row{display:flex;gap:var(--sp-sm);align-items:center;flex-wrap:wrap}
-.filter-group{display:flex;flex-direction:column;gap:3px}
-.filter-group label{
-  font-size:.65rem;font-weight:var(--fw-semibold);text-transform:uppercase;
-  letter-spacing:.7px;color:var(--c-text-muted)
-}
-.filter-group select{
-  font-family:var(--ff);font-size:.8rem;padding:7px 12px;
-  border:1px solid var(--c-border);border-radius:var(--r-sm);
-  background:var(--c-bg);color:var(--c-text);min-width:130px;
-  cursor:pointer;transition:all .2s;
-  appearance:none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238695a4' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;
-}
-.filter-group select:focus{outline:none;border-color:var(--c-secondary);box-shadow:0 0 0 3px rgba(74,144,217,.12)}
-.btn{
-  display:inline-flex;align-items:center;gap:var(--sp-xs);
-  padding:8px 18px;border:none;border-radius:var(--r-sm);
-  font-family:var(--ff);font-size:.8rem;font-weight:var(--fw-semibold);
-  cursor:pointer;transition:all .2s;letter-spacing:.2px
-}
-.btn-primary{background:var(--c-primary);color:#fff}
-.btn-primary:hover{background:var(--c-primary-mid);transform:translateY(-1px);box-shadow:var(--sh-sm)}
-.btn-outline{background:transparent;border:1px solid var(--c-border);color:var(--c-text-secondary)}
-.btn-outline:hover{border-color:var(--c-secondary);color:var(--c-primary)}
-.btn-sm{padding:5px 10px;font-size:.72rem}
+  :root {
+    --cyan: #06ffe1;
+    --magenta: #f85cff;
+    --black: #000;
+    --ink: #0a0e0d;
+    --surface: #111716;
+    --surface-2: #161e1c;
+    --line: rgba(6, 255, 225, 0.15);
+    --line-strong: rgba(6, 255, 225, 0.35);
+    --line-magenta: rgba(248, 92, 255, 0.25);
+    --text: #fff;
+    --text-dim: #8a9290;
+    --text-fade: #4a524f;
+    --display: 'Varela Round', system-ui, sans-serif;
+    --body: 'Manrope', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
 
-/* ═══ KPIs ═══ */
-.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-md);margin:var(--sp-lg) 0 var(--sp-md)}
-.kpi-card{
-  background:var(--c-surface);border-radius:var(--r-md);
-  padding:var(--sp-lg) var(--sp-lg);box-shadow:var(--sh-sm);
-  border-left:3px solid var(--c-primary);
-  transition:all .25s ease;position:relative;overflow:hidden;
-}
-.kpi-card::after{
-  content:'';position:absolute;top:0;right:0;width:60px;height:60px;
-  background:radial-gradient(circle at top right, rgba(0,229,160,.04) 0%, transparent 70%);
-  pointer-events:none;
-}
-.kpi-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
-.kpi-card .kpi-label{
-  font-size:.68rem;font-weight:var(--fw-semibold);text-transform:uppercase;
-  letter-spacing:.7px;color:var(--c-text-muted);margin-bottom:6px
-}
-.kpi-card .kpi-value{font-size:1.65rem;font-weight:var(--fw-bold);color:var(--c-text);line-height:1.2}
-.kpi-card .kpi-sub{font-size:.75rem;color:var(--c-text-secondary);margin-top:4px}
-.kpi-card .kpi-delta{
-  display:inline-flex;align-items:center;gap:3px;font-size:.72rem;
-  font-weight:var(--fw-semibold);padding:3px 8px;border-radius:20px;margin-top:6px;
-  font-family:var(--ff-mono);
-}
-.kpi-delta.up{background:var(--c-accent-soft);color:#0a6332}
-.kpi-delta.down{background:#fce8e8;color:#b52a2a}
+  html { scroll-behavior: smooth; }
 
-/* ═══ MAP ═══ */
-.map-section{display:grid;grid-template-columns:1fr 310px;gap:var(--sp-md);margin-bottom:var(--sp-lg)}
-.map-container{
-  background:var(--c-surface);border-radius:var(--r-md);overflow:hidden;
-  box-shadow:var(--sh-md);min-height:500px;position:relative
-}
-#map{width:100%;height:100%;min-height:500px}
-.tile-switcher{
-  position:absolute;top:var(--sp-sm);right:var(--sp-sm);z-index:800;
-  display:flex;gap:2px;background:rgba(255,255,255,.92);
-  border-radius:var(--r-sm);box-shadow:var(--sh-md);padding:3px;
-  backdrop-filter:blur(8px)
-}
-.tile-btn{
-  padding:5px 12px;border:none;background:transparent;font-family:var(--ff);
-  font-size:.7rem;font-weight:var(--fw-semibold);color:var(--c-text-secondary);
-  border-radius:6px;cursor:pointer;transition:all .15s
-}
-.tile-btn.active{background:var(--c-primary);color:#fff}
-.map-sidebar{display:flex;flex-direction:column;gap:var(--sp-md)}
-.sidebar-card{
-  background:var(--c-surface);border-radius:var(--r-md);
-  padding:var(--sp-lg);box-shadow:var(--sh-sm)
-}
-.sidebar-card h3{
-  font-size:.82rem;font-weight:var(--fw-semibold);color:var(--c-text);
-  margin-bottom:var(--sp-sm);display:flex;align-items:center;gap:var(--sp-xs)
-}
-.geo-info-row{
-  display:flex;justify-content:space-between;padding:5px 0;
-  border-bottom:1px solid var(--c-border);font-size:.78rem
-}
-.geo-info-row:last-child{border-bottom:none}
-.geo-info-row .geo-label{color:var(--c-text-muted)}
-.geo-info-row .geo-value{font-weight:var(--fw-medium);color:var(--c-text);font-family:var(--ff-mono);font-size:.75rem}
-.geo-actions{display:flex;gap:var(--sp-sm);margin-top:var(--sp-sm)}
-.legend-list{list-style:none}
-.legend-item{display:flex;align-items:center;gap:var(--sp-sm);font-size:.75rem;padding:3px 0;color:var(--c-text-secondary)}
-.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: var(--body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-/* ═══ CHARTS ═══ */
-.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:var(--sp-md);margin-bottom:var(--sp-lg)}
-.chart-card{
-  background:var(--c-surface);border-radius:var(--r-md);
-  padding:var(--sp-lg);box-shadow:var(--sh-sm)
-}
-.chart-card h3{font-size:.85rem;font-weight:var(--fw-semibold);margin-bottom:var(--sp-md);color:var(--c-text)}
-.bar-chart{display:flex;flex-direction:column;gap:var(--sp-sm)}
-.bar-row{display:flex;align-items:center;gap:var(--sp-sm)}
-.bar-label{width:110px;font-size:.72rem;color:var(--c-text-secondary);text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bar-track{flex:1;height:26px;background:var(--c-bg);border-radius:6px;position:relative;overflow:hidden}
-.bar-fill{height:100%;border-radius:6px;transition:width .6s ease;position:relative}
-.bar-fill-inner{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.68rem;font-weight:var(--fw-semibold);color:#fff;white-space:nowrap;font-family:var(--ff-mono)}
-.share-chart{display:flex;height:36px;border-radius:var(--r-sm);overflow:hidden;margin-bottom:var(--sp-sm)}
-.share-segment{display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:var(--fw-semibold);color:#fff;transition:width .6s ease;min-width:0;overflow:hidden;font-family:var(--ff-mono)}
-.share-legend{display:flex;flex-wrap:wrap;gap:var(--sp-sm)}
-.share-legend-item{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--c-text-secondary)}
-.share-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
-.temporal-row{display:flex;align-items:flex-end;gap:4px;height:140px;padding-bottom:var(--sp-md)}
-.temporal-bar-group{flex:1;display:flex;gap:2px;align-items:flex-end;height:100%}
-.temporal-bar{flex:1;border-radius:4px 4px 0 0;transition:height .5s ease;min-width:10px}
-.temporal-bar:hover{opacity:.85}
-.temporal-labels{display:flex;gap:4px}
-.temporal-label{flex:1;text-align:center;font-size:.65rem;color:var(--c-text-muted);font-family:var(--ff-mono)}
-.temporal-legend{display:flex;gap:var(--sp-md);margin-top:var(--sp-sm);justify-content:center}
-.temporal-legend-item{display:flex;align-items:center;gap:4px;font-size:.7rem;color:var(--c-text-secondary)}
-.temporal-legend-dot{width:10px;height:6px;border-radius:2px}
+  /* Ambient background — capa de gradientes radiales y patrón de puntos */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 15% 20%, rgba(6, 255, 225, 0.12), transparent 50%),
+      radial-gradient(ellipse at 85% 80%, rgba(248, 92, 255, 0.08), transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(6, 255, 225, 0.06), transparent 60%);
+    z-index: 0;
+    pointer-events: none;
+  }
 
-/* ═══ TABLE ═══ */
-.table-section{
-  background:var(--c-surface);border-radius:var(--r-md);
-  box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:var(--sp-lg)
-}
-.table-header{padding:var(--sp-lg) var(--sp-lg) var(--sp-sm);display:flex;justify-content:space-between;align-items:center}
-.table-header h3{font-size:.9rem;font-weight:var(--fw-semibold)}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
-thead th{
-  padding:var(--sp-sm) var(--sp-md);font-size:.68rem;font-weight:var(--fw-semibold);
-  text-transform:uppercase;letter-spacing:.6px;color:var(--c-text-muted);text-align:left;
-  border-bottom:2px solid var(--c-border);white-space:nowrap;
-  background:var(--c-bg)
-}
-tbody td{
-  padding:var(--sp-sm) var(--sp-md);font-size:.8rem;border-bottom:1px solid var(--c-border);
-  white-space:nowrap
-}
-tbody tr:hover{background:var(--c-primary-light)}
-tbody td:nth-child(n+4){font-family:var(--ff-mono);font-size:.75rem}
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(6, 255, 225, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 255, 225, 0.03) 1px, transparent 1px);
+    background-size: 64px 64px;
+    z-index: 0;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at center, black 0%, transparent 80%);
+  }
 
-/* ═══ INSIGHTS ═══ */
-.insights-section{
-  background:var(--c-surface);border-radius:var(--r-md);
-  box-shadow:var(--sh-sm);padding:var(--sp-lg);margin-bottom:var(--sp-lg)
-}
-.insights-section h3{font-size:.9rem;font-weight:var(--fw-semibold);margin-bottom:var(--sp-md)}
-.insight-list{display:flex;flex-direction:column;gap:var(--sp-sm)}
-.insight-item{
-  display:flex;gap:var(--sp-sm);padding:10px var(--sp-md);
-  border-radius:var(--r-sm);background:var(--c-bg);font-size:.8rem;
-  line-height:1.55;color:var(--c-text-secondary);border-left:3px solid var(--c-primary-mid)
-}
-.insight-item.highlight{border-left-color:var(--c-purple);background:var(--c-purple-light)}
-.insight-item.success{border-left-color:var(--c-success);background:var(--c-accent-soft)}
-.insight-item.warning{border-left-color:var(--c-warning);background:#fef9eb}
-.insight-icon{font-size:1rem;flex-shrink:0;margin-top:1px}
+  main { position: relative; z-index: 1; }
 
-/* ═══ FOOTER ═══ */
-.method-footer{
-  background:var(--c-surface);border-radius:var(--r-md);
-  box-shadow:var(--sh-sm);padding:var(--sp-lg);margin-bottom:var(--sp-2xl);
-  border-top:2px solid var(--c-accent);position:relative;overflow:hidden
-}
-.method-footer::before{
-  content:'';position:absolute;top:0;left:0;width:100%;height:40px;
-  background:linear-gradient(180deg, rgba(0,229,160,.03) 0%, transparent 100%);
-  pointer-events:none;
-}
-.method-footer h3{font-size:.85rem;font-weight:var(--fw-semibold);margin-bottom:var(--sp-sm)}
-.method-footer p{font-size:.75rem;color:var(--c-text-muted);line-height:1.6;margin-bottom:var(--sp-sm)}
-.method-tags{display:flex;flex-wrap:wrap;gap:var(--sp-xs);margin-top:var(--sp-sm)}
-.method-tag{
-  font-size:.65rem;padding:4px 10px;background:var(--c-primary-light);
-  border-radius:20px;color:var(--c-primary-mid);
-  border:1px solid var(--c-border);font-weight:var(--fw-medium)
-}
+  /* ============================================================
+     TOP STRIP — minimalist, like the brandboard reference
+     ============================================================ */
+  .strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 48px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
 
-/* ═══ TABS ═══ */
-.tabs-nav{
-  display:flex;gap:4px;padding:var(--sp-sm) 0;
-  border-bottom:1px solid var(--c-border);margin-bottom:var(--sp-md)
-}
-.tab-btn{
-  padding:10px 22px;border:none;background:transparent;font-family:var(--ff);
-  font-size:.82rem;font-weight:var(--fw-semibold);color:var(--c-text-muted);
-  cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;
-  border-radius:var(--r-sm) var(--r-sm) 0 0;letter-spacing:.1px
-}
-.tab-btn:hover{color:var(--c-text);background:rgba(0,0,0,.02)}
-.tab-btn.active{
-  color:var(--c-primary);border-bottom-color:var(--c-accent);
-  background:var(--c-primary-light)
-}
-.tab-btn .tab-badge{font-size:.62rem;padding:2px 7px;border-radius:10px;margin-left:4px;font-weight:var(--fw-bold)}
-.tab-btn .tab-badge.new{background:var(--c-accent);color:var(--c-primary)}
-.tab-panel{display:none}.tab-panel.active{display:block}
+  .strip__dot-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .strip__dot-line::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan);
+  }
+  .strip__dot-line::after {
+    content: '';
+    width: 80px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--cyan), transparent);
+  }
+  .strip__chevron {
+    color: var(--cyan);
+    font-size: 1.4rem;
+    font-family: var(--display);
+    line-height: 1;
+  }
 
-/* ═══ AVANCE ═══ */
-.tg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-md);flex-wrap:wrap;gap:var(--sp-sm)}
-.tg-header h2{font-size:1.05rem;font-weight:var(--fw-bold);color:var(--c-text)}
-.tg-header p{font-size:.8rem;color:var(--c-text-secondary);max-width:600px}
-.tg-chart-wrap{background:var(--c-surface);border-radius:var(--r-md);padding:var(--sp-lg);box-shadow:var(--sh-sm);margin-bottom:var(--sp-md)}
-.tg-chart-wrap h3{font-size:.85rem;font-weight:var(--fw-semibold);margin-bottom:var(--sp-md)}
-.tg-svg{width:100%;height:280px;display:block}
-.tg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--sp-md);margin-bottom:var(--sp-lg)}
-.tg-stat{
-  background:var(--c-surface);border-radius:var(--r-md);
-  padding:var(--sp-lg);box-shadow:var(--sh-sm);border-left:3px solid var(--c-primary-mid)
-}
-.tg-stat .stat-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:var(--c-text-muted);font-weight:var(--fw-semibold)}
-.tg-stat .stat-value{font-size:1.35rem;font-weight:var(--fw-bold);margin-top:var(--sp-xs)}
-.tg-stat .stat-sub{font-size:.75rem;color:var(--c-text-secondary);margin-top:2px}
-.lot-label{font-size:8px;font-weight:600;pointer-events:none;text-shadow:0 0 2px #fff,0 0 2px #fff}
+  /* ============================================================
+     HERO
+     ============================================================ */
+  .hero {
+    min-height: calc(100vh - 72px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 48px 60px;
+    position: relative;
+  }
 
-/* ═══ RESPONSIVE ═══ */
-@media(max-width:900px){
-  .map-section{grid-template-columns:1fr}
-  .map-container{min-height:350px}
-  #map{min-height:350px}
-  .kpi-row{grid-template-columns:repeat(2,1fr)}
-  .charts-grid{grid-template-columns:1fr}
-  .header-inner{flex-direction:column;align-items:flex-start}
-  .header-right{flex-direction:column;align-items:flex-start}
-}
-@media(max-width:540px){
-  .kpi-row{grid-template-columns:1fr}
-  .filters-row{flex-direction:column}
-  .filter-group select{width:100%}
-}
-.leaflet-popup-content-wrapper{border-radius:var(--r-sm)!important;font-family:var(--ff)!important;font-size:.78rem!important}
+  .hero__breadcrumb {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero__breadcrumb span:nth-child(1) {
+    border: 1px solid var(--line-strong);
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+  .hero__breadcrumb span:nth-child(2) { color: var(--text-dim); }
 
-/* ═══ ANIMATIONS ═══ */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.kpi-card { animation: fadeInUp .4s ease both; }
-.kpi-card:nth-child(2) { animation-delay: .08s; }
-.kpi-card:nth-child(3) { animation-delay: .16s; }
-.chart-card { animation: fadeInUp .4s ease both; animation-delay: .2s; }
-.sidebar-card { animation: fadeInUp .35s ease both; }
-.sidebar-card:nth-child(2) { animation-delay: .1s; }
-.sidebar-card:nth-child(3) { animation-delay: .2s; }
+  .hero__wordmark {
+    font-family: var(--display);
+    font-size: clamp(5rem, 16vw, 14rem);
+    line-height: 0.85;
+    color: var(--cyan);
+    letter-spacing: -0.04em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 0.05em;
+    text-shadow: 0 0 80px rgba(6, 255, 225, 0.4);
+  }
+  .hero__wordmark span:last-child {
+    color: var(--cyan);
+    font-weight: 700;
+    margin-left: -0.1em;
+  }
+
+  .hero__sub {
+    font-family: var(--display);
+    font-size: clamp(1.4rem, 3vw, 2.4rem);
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+    max-width: 720px;
+  }
+  .hero__sub em {
+    color: var(--magenta);
+    font-style: normal;
+  }
+
+  .hero__desc {
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    max-width: 580px;
+    margin-bottom: 48px;
+    line-height: 1.7;
+  }
+
+  .hero__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 64px;
+  }
+
+  .hero__cta a {
+    text-decoration: none;
+    font-family: var(--body);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 14px 28px;
+    border-radius: 2px;
+    transition: all 200ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .hero__cta a:first-child {
+    background: var(--cyan);
+    color: var(--black);
+    border: 1px solid var(--cyan);
+  }
+  .hero__cta a:first-child:hover {
+    background: transparent;
+    color: var(--cyan);
+    box-shadow: 0 0 24px rgba(6, 255, 225, 0.4);
+  }
+  .hero__cta a:last-child {
+    color: var(--text);
+    border: 1px solid var(--line-strong);
+  }
+  .hero__cta a:last-child:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+  }
+
+  .hero__metric-row {
+    display: flex;
+    gap: 56px;
+    flex-wrap: wrap;
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+    max-width: 900px;
+  }
+  .hero__metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .hero__metric-val {
+    font-family: var(--display);
+    font-size: 1.8rem;
+    color: var(--cyan);
+    line-height: 1;
+  }
+  .hero__metric-lbl {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* Decoración: chevron grande en esquina */
+  .hero__chevron {
+    position: absolute;
+    top: 50%;
+    right: -60px;
+    transform: translateY(-50%);
+    width: 360px;
+    height: 360px;
+    opacity: 0.12;
+    pointer-events: none;
+  }
+  .hero__chevron svg { width: 100%; height: 100%; }
+
+  /* Decoración: dots pattern */
+  .hero__dots {
+    position: absolute;
+    bottom: -40px;
+    left: -40px;
+    width: 320px;
+    height: 320px;
+    background: url('assets/dots-cyan.png') no-repeat center / contain;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  /* ============================================================
+     SUITE SECTION
+     ============================================================ */
+  .suite {
+    padding: 80px 48px 40px;
+    position: relative;
+  }
+
+  .suite__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 56px;
+    gap: 32px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 32px;
+  }
+
+  .suite__title {
+    font-family: var(--display);
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    max-width: 800px;
+  }
+  .suite__title em {
+    color: var(--cyan);
+    font-style: normal;
+  }
+
+  .suite__counter {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: right;
+  }
+  .suite__counter strong {
+    display: block;
+    color: var(--magenta);
+    font-size: 2rem;
+    font-family: var(--display);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+
+  .suite__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+
+  .card {
+    background: var(--ink);
+    padding: 36px 36px 32px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    min-height: 380px;
+    position: relative;
+    overflow: hidden;
+    transition: background 250ms ease;
+  }
+  .card:hover {
+    background: var(--surface);
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--cyan);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 350ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  .card:hover::before { transform: scaleX(1); }
+
+  .card__no {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-fade);
+    letter-spacing: 0.16em;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card__no::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .card__name {
+    font-family: var(--display);
+    font-size: 1.85rem;
+    color: var(--text);
+    line-height: 1.05;
+    margin-bottom: 12px;
+    letter-spacing: -0.015em;
+  }
+  .card:hover .card__name { color: var(--cyan); }
+
+  .card__tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--magenta);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .card__desc {
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    margin-bottom: 28px;
+    flex: 1;
+  }
+
+  .card__features {
+    list-style: none;
+    margin-bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .card__features li {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+  }
+  .card__features li::before {
+    content: '';
+    width: 4px; height: 4px;
+    background: var(--cyan);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .card__cta {
+    font-family: var(--body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--cyan);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.02em;
+    margin-top: auto;
+  }
+  .card__cta::after {
+    content: '>';
+    font-family: var(--display);
+    font-size: 1.2rem;
+    transition: transform 200ms ease;
+  }
+  .card:hover .card__cta::after { transform: translateX(6px); }
+
+  /* ============================================================
+     STACK SECTION — descripción de BoldOS
+     ============================================================ */
+  .stack {
+    padding: 100px 48px;
+    position: relative;
+  }
+  .stack__inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .stack__copy h2 {
+    font-family: var(--display);
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    color: var(--text);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin-bottom: 24px;
+  }
+  .stack__copy h2 em {
+    color: var(--magenta);
+    font-style: normal;
+  }
+  .stack__copy p {
+    color: var(--text-dim);
+    font-size: 1rem;
+    line-height: 1.75;
+    margin-bottom: 16px;
+  }
+  .stack__copy strong { color: var(--cyan); font-weight: 600; }
+
+  .stack__diagram {
+    background: var(--ink);
+    border: 1px solid var(--line);
+    padding: 40px;
+    border-radius: 2px;
+    position: relative;
+  }
+  .stack__layer {
+    padding: 20px 24px;
+    border: 1px solid var(--line);
+    margin-bottom: 12px;
+    position: relative;
+    transition: all 200ms ease;
+  }
+  .stack__layer:hover {
+    border-color: var(--cyan);
+    background: rgba(6, 255, 225, 0.03);
+  }
+  .stack__layer:last-child { margin-bottom: 0; }
+  .stack__layer-name {
+    font-family: var(--display);
+    font-size: 1.25rem;
+    color: var(--cyan);
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  .stack__layer-desc {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    letter-spacing: 0.02em;
+  }
+  .stack__connector {
+    text-align: center;
+    color: var(--magenta);
+    font-family: var(--mono);
+    font-size: 1rem;
+    margin: 0;
+    padding: 4px 0;
+    letter-spacing: 0.2em;
+    opacity: 0.6;
+  }
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  .ftr {
+    border-top: 1px solid var(--line);
+    padding: 48px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 48px;
+    background: var(--black);
+    position: relative;
+  }
+  .ftr__motto {
+    font-family: var(--display);
+    font-size: 1.6rem;
+    color: var(--text);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+  .ftr__motto em {
+    color: var(--magenta);
+    font-style: normal;
+  }
+  .ftr__col h4 {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .ftr__col a, .ftr__col p {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+    transition: color 150ms ease;
+  }
+  .ftr__col a:hover { color: var(--cyan); }
+  .ftr__col p { color: var(--text-dim); }
+
+  .ftr__bottom {
+    border-top: 1px solid var(--line);
+    padding: 24px 48px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-fade);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 900px) {
+    .strip, .hero, .suite, .stack, .ftr, .ftr__bottom { padding-left: 24px; padding-right: 24px; }
+    .hero { padding-top: 48px; padding-bottom: 48px; }
+    .hero__chevron { display: none; }
+    .stack__inner { grid-template-columns: 1fr; gap: 48px; }
+    .ftr { grid-template-columns: 1fr; gap: 32px; }
+    .suite__grid { grid-template-columns: 1fr; }
+    .hero__metric-row { gap: 32px; }
+  }
+
+  /* ============================================================
+     ENTRADA — animaciones suaves
+     ============================================================ */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hero > * { animation: fadeUp 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards; }
+  .hero__breadcrumb { animation-delay: 80ms; }
+  .hero__wordmark   { animation-delay: 160ms; }
+  .hero__sub        { animation-delay: 280ms; }
+  .hero__desc       { animation-delay: 380ms; }
+  .hero__cta        { animation-delay: 480ms; }
+  .hero__metric-row { animation-delay: 580ms; }
+
+  @keyframes pulseCyan {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+  }
+  .strip__dot-line::before { animation: pulseCyan 2.5s ease-in-out infinite; }
+
 </style>
 </head>
 <body>
-<header class="header">
-  <div class="container header-inner">
-    <div class="header-left">
-      <div class="header-brand">
-        <h1>
-          <img src="data:image/png;base64,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" alt="Bold" class="header-brand-logo">
-          <span class="pipe">|</span>
-          <span>Intelligence</span>
-        </h1>
-        <p>Dimensionamiento de demanda y seguimiento de ejecuci&#243;n por cultivo, regi&#243;n y campa&#241;a. Sensorizaci&#243;n geoespacial e insights autom&#225;ticos para el Cono Sur.</p>
-        <div class="powered-by">Powered by <b>BoldOS</b> &#8212; Daredevil + Thot</div>
-      </div>
-    </div>
-    <div class="header-right">
-      <div class="header-meta">
-        <span class="tag">Campa&#241;a 2026/27</span>
-        <span class="tag">Multicultivo</span>
-        <span class="tag">Cono Sur</span>
-      </div>
-    </div>
-  </div>
-</header>
 
-<nav class="filters-bar"><div class="container"><div class="filters-row">
-  <div class="filter-group"><label>Pa&#237;s</label><select id="f-country"><option value="todos" selected>Todos</option></select></div>
-  <div class="filter-group"><label>Campa&#241;a</label><select id="f-campaign">
-    <option value="2026/27" selected>2026/27 (Proyecci&#243;n)</option><option value="2025/26">2025/26</option><option value="2024/25">2024/25</option>
-  </select></div>
-  <div class="filter-group"><label>Cultivo</label><select id="f-crop">
-    <option value="todos" selected>Todos</option><option value="soja">Soja</option><option value="trigo">Trigo</option><option value="maiz">Ma&#237;z</option><option value="girasol">Girasol</option>
-  </select></div>
-  <div class="filter-group"><label>Regi&#243;n</label><select id="f-region"><option value="todas" selected>Todas</option></select></div>
-  <div class="filter-group"><label>Provincia / Estado</label><select id="f-province"><option value="todas" selected>Todas</option></select></div>
-  <div class="filter-group"><label>Departamento</label><select id="f-dept"><option value="todos" selected>Todos</option></select></div>
-  <button class="btn btn-primary" onclick="applyFilters()">Aplicar</button>
-  <button class="btn btn-outline" onclick="resetFilters()">Limpiar</button>
-</div></div></nav>
+<main>
 
-<main class="container">
-  <div class="tabs-nav">
-    <button class="tab-btn active" data-tab="projection" onclick="switchTab('projection')">&#128202; Oportunidad de Campa&#241;a</button>
-    <button class="tab-btn" data-tab="avance" onclick="switchTab('avance')">&#127793; Seguimiento de Ejecuci&#243;n</button>
+  <!-- ============================================================
+       TOP STRIP
+       ============================================================ -->
+  <div class="strip">
+    <span class="strip__dot-line">BoldOS · 2026</span>
+    <span class="strip__chevron">&gt;</span>
   </div>
 
-  <div class="tab-panel active" id="panel-projection">
-  <div class="kpi-row" id="kpi-row"></div>
-  <section class="insights-section"><h3>&#128270; Insights autom&#225;ticos</h3><div class="insight-list" id="insight-list"></div></section>
-  <section class="map-section">
-    <div class="map-container">
-      <div id="map"></div>
-      <div class="tile-switcher">
-        <button class="tile-btn active" data-tile="osm">Mapa</button>
-        <button class="tile-btn" data-tile="terrain">Terreno</button>
-        <button class="tile-btn" data-tile="satellite">Sat&#233;lite</button>
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <section class="hero">
+    <div class="hero__chevron" aria-hidden="true">
+      <svg viewBox="0 0 100 100" fill="none" stroke="#06ffe1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 30 20 L 70 50 L 30 80"/>
+      </svg>
+    </div>
+    <div class="hero__dots" aria-hidden="true"></div>
+
+    <div class="hero__breadcrumb">
+      <span>BOLD&gt;</span>
+      <span>Agro Intelligence Suite</span>
+    </div>
+
+    <h1 class="hero__wordmark">BOLD<span>&gt;</span></h1>
+
+    <p class="hero__sub">
+      El dato es <em>nuestro faro.</em>
+    </p>
+
+    <p class="hero__desc">
+      Cuatro motores de decisión para entidades financieras agro. Detección de
+      oportunidad, precalificación crediticia, lectura agronómica y monitoreo de
+      cartera — corriendo sobre BoldOS.
+    </p>
+
+    <div class="hero__cta">
+      <a href="#suite">Explorar la suite</a>
+      <a href="#stack">Conocer BoldOS</a>
+    </div>
+
+    <div class="hero__metric-row">
+      <div class="hero__metric">
+        <span class="hero__metric-val">4</span>
+        <span class="hero__metric-lbl">Productos</span>
+      </div>
+      <div class="hero__metric">
+        <span class="hero__metric-val">5</span>
+        <span class="hero__metric-lbl">Países LATAM</span>
+      </div>
+      <div class="hero__metric">
+        <span class="hero__metric-val">2</span>
+        <span class="hero__metric-lbl">Capas: Daredevil · Thot</span>
+      </div>
+      <div class="hero__metric">
+        <span class="hero__metric-val">1</span>
+        <span class="hero__metric-lbl">Sistema operativo agro</span>
       </div>
     </div>
-    <div class="map-sidebar">
+  </section>
 
-      <div class="sidebar-card"><h3>&#128506;&#65039; Leyenda</h3><ul class="legend-list" id="legend-list"></ul></div>
-      <div class="sidebar-card"><h3>&#128202; Resumen r&#225;pido</h3><div id="sidebar-stats-content"></div></div>
+  <!-- ============================================================
+       SUITE — los 4 productos
+       ============================================================ -->
+  <section class="suite" id="suite">
+    <div class="suite__head">
+      <h2 class="suite__title">
+        Cuatro decisiones, <em>un mismo lente.</em>
+      </h2>
+      <div class="suite__counter">
+        <strong>04</strong>
+        Productos en línea
+      </div>
+    </div>
+
+    <div class="suite__grid">
+
+      <a href="oportunidad.html" class="card">
+        <div class="card__no">P1 — Origen</div>
+        <h3 class="card__name">Estimación de Oportunidad</h3>
+        <div class="card__tag">Detección de demanda crediticia</div>
+        <p class="card__desc">
+          Identifica establecimientos con señales de necesidad de financiamiento
+          antes que la competencia. Lee superficie, intensidad y cambio de uso
+          del suelo en tiempo casi real.
+        </p>
+        <ul class="card__features">
+          <li>Mapa de calor de oportunidad por partido</li>
+          <li>Score 0-100 por establecimiento</li>
+          <li>Comparable temporal multi-campaña</li>
+        </ul>
+        <span class="card__cta">Abrir prototipo</span>
+      </a>
+
+      <a href="precalificacion.html" class="card">
+        <div class="card__no">P2 — Evaluación</div>
+        <h3 class="card__name">Precalificación Crediticia</h3>
+        <div class="card__tag">Scoring agronómico-financiero</div>
+        <p class="card__desc">
+          Scorecard agronómico que combina histórico productivo, riesgo climático,
+          comportamiento de pago y benchmark zonal en una decisión auditable.
+        </p>
+        <ul class="card__features">
+          <li>Pasado · Presente · Futuro en una vista</li>
+          <li>Semáforos por factor de riesgo</li>
+          <li>Modal de explicabilidad del score</li>
+        </ul>
+        <span class="card__cta">Abrir prototipo</span>
+      </a>
+
+      <a href="info-agronomica.html" class="card">
+        <div class="card__no">P3 — Profundidad</div>
+        <h3 class="card__name">Información Agronómica</h3>
+        <div class="card__tag">Inteligencia para decisión de crédito</div>
+        <p class="card__desc">
+          Ficha agronómica completa por establecimiento: rotación de cultivos,
+          rinde estimado, riesgo de inundación, fenología y advisor agéntico.
+        </p>
+        <ul class="card__features">
+          <li>Crop detection multi-temporal</li>
+          <li>Yield prediction por lote</li>
+          <li>Síntesis con IA generativa</li>
+        </ul>
+        <span class="card__cta">Abrir prototipo</span>
+      </a>
+
+      <a href="cartera.html" class="card">
+        <div class="card__no">P4 — Monitoreo</div>
+        <h3 class="card__name">Seguimiento de Cartera</h3>
+        <div class="card__tag">Monitoreo en vivo del portfolio</div>
+        <p class="card__desc">
+          Tablero ejecutivo del portfolio agro: distribución por cultivo, alertas
+          tempranas, exposición geográfica y deterioro de garantías satelitales.
+        </p>
+        <ul class="card__features">
+          <li>Vista geográfica + tabular</li>
+          <li>Alertas de stress hídrico</li>
+          <li>Donut de exposición por riesgo</li>
+        </ul>
+        <span class="card__cta">Abrir prototipo</span>
+      </a>
+
     </div>
   </section>
-  <section class="charts-grid">
-    <div class="chart-card"><h3>Superficie proyectada por cultivo (M ha)</h3><div id="chart-bars" class="bar-chart"></div></div>
-    <div class="chart-card"><h3>Participaci&#243;n relativa por cultivo</h3><div id="chart-share"></div></div>
-    <div class="chart-card"><h3>Evoluci&#243;n por campa&#241;a (M ha)</h3><div id="chart-temporal"></div></div>
-    <div class="chart-card"><h3>Variaci&#243;n por provincia / estado (%)</h3><div id="chart-province" class="bar-chart"></div></div>
+
+  <!-- ============================================================
+       STACK — BoldOS architecture
+       ============================================================ -->
+  <section class="stack" id="stack">
+    <div class="stack__inner">
+      <div class="stack__copy">
+        <h2>BoldOS · <em>el sistema operativo<br>de la inteligencia agro.</em></h2>
+        <p>
+          Cada producto de la suite corre sobre la misma infraestructura: dos
+          capas que convierten señales satelitales y operativas en decisiones de
+          negocio.
+        </p>
+        <p>
+          <strong>Daredevil</strong> es la capa de sensorización multitemporal —
+          procesa señales para detectar cultivos, agua, biomasa, estructura
+          parcelaria y cambio fenológico a escala continental.
+        </p>
+        <p>
+          <strong>Thot</strong> es la capa cognitiva — modelos de ML y advisors
+          agénticos que transforman las señales en scores, alertas y
+          recomendaciones accionables para el negocio.
+        </p>
+      </div>
+
+      <div class="stack__diagram">
+        <div class="stack__layer">
+          <div class="stack__layer-name">Productos</div>
+          <div class="stack__layer-desc">Oportunidad · Precalificación · Info Agro · Cartera</div>
+        </div>
+        <div class="stack__connector">▼▼▼</div>
+        <div class="stack__layer">
+          <div class="stack__layer-name">Thot</div>
+          <div class="stack__layer-desc">Capa cognitiva · ML · advisors agénticos</div>
+        </div>
+        <div class="stack__connector">▼▼▼</div>
+        <div class="stack__layer">
+          <div class="stack__layer-name">Daredevil</div>
+          <div class="stack__layer-desc">Sensorización multitemporal · señales</div>
+        </div>
+      </div>
+    </div>
   </section>
-  <section class="table-section">
-    <div class="table-header"><h3>Detalle por cultivo y regi&#243;n</h3><span style="font-size:.72rem;color:var(--c-text-muted);" id="table-subtitle"></span></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Pa&#237;s</th><th>Cultivo</th><th>Prov./Estado</th><th>Sup. Hist.</th><th>Sup. Proy.</th><th>&#916; ha</th><th>&#916; %</th><th>Rinde (ton/ha)</th><th>Producci&#243;n (ton)</th></tr></thead>
-      <tbody id="table-body"></tbody>
-    </table></div>
-  </section>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="ftr">
+    <div>
+      <p class="ftr__motto">El dato es <em>nuestro faro.</em></p>
+      <p style="color: var(--text-dim); margin-top: 12px; font-size: 0.85rem; max-width: 380px;">
+        Bold construye software de inteligencia agronómica para los principales
+        actores financieros de Latinoamérica.
+      </p>
+    </div>
+    <div class="ftr__col">
+      <h4>Suite</h4>
+      <a href="oportunidad.html">Oportunidad</a>
+      <a href="precalificacion.html">Precalificación</a>
+      <a href="info-agronomica.html">Info Agronómica</a>
+      <a href="cartera.html">Cartera</a>
+    </div>
+    <div class="ftr__col">
+      <h4>BoldOS</h4>
+      <p>Daredevil — sensorización</p>
+      <p>Thot — cognición</p>
+      <p>Campaña 2025/26</p>
+    </div>
+  </footer>
+
+  <div class="ftr__bottom">
+    <span id="footerDate"></span>
+    <span>Demo no productiva</span>
   </div>
 
-  <div class="tab-panel" id="panel-avance">
-    <div class="tg-header">
-      <div>
-        <h2>&#127793; Seguimiento de Ejecuci&#243;n: Intenci&#243;n vs. Realidad</h2>
-        <p>Contraste entre la intenci&#243;n de siembra inicial (proyecci&#243;n a inicio de campa&#241;a) y la superficie real observada v&#237;a sensorizaci&#243;n, con actualizaci&#243;n cada 15 d&#237;as.</p>
-      </div>
-      <div class="filter-group">
-        <label>Cultivo</label>
-        <select id="tg-crop" onchange="renderAvanceSiembra()">
-          <option value="soja">Soja</option>
-          <option value="maiz">Ma&#237;z</option>
-          <option value="trigo">Trigo</option>
-          <option value="girasol">Girasol</option>
-        </select>
-      </div>
-    </div>
-    <div class="tg-grid" id="tg-stats"></div>
-    <div class="tg-chart-wrap">
-      <h3>Evoluci&#243;n quincenal: Intenci&#243;n vs. Superficie observada</h3>
-      <svg class="tg-svg" id="tg-chart" viewBox="0 0 800 260"></svg>
-      <div style="display:flex;gap:var(--sp-lg);justify-content:center;margin-top:var(--sp-sm);">
-        <span class="share-legend-item"><span class="share-legend-dot" style="background:var(--c-text-muted);opacity:.4"></span>Intenci&#243;n inicial</span>
-        <span class="share-legend-item"><span class="share-legend-dot" style="background:var(--c-accent)"></span>Sup. observada (Daredevil)</span>
-        <span class="share-legend-item"><span class="share-legend-dot" style="background:var(--c-purple)"></span>Gap (diferencia)</span>
-      </div>
-    </div>
-    <div class="tg-chart-wrap">
-      <h3>Avance por provincia/estado (&#250;ltimo corte)</h3>
-      <div id="tg-province-bars" class="bar-chart"></div>
-    </div>
-    <section class="insights-section">
-      <h3>&#128270; Insights de Ejecuci&#243;n</h3>
-      <div class="insight-list" id="tg-insights"></div>
-    </section>
-  </div>
-
-  <section class="method-footer">
-    <h3>Nota metodol&#243;gica</h3>
-    <p>Bold Intelligence es un prototipo conceptual desarrollado por Bold (bold-agro.ai). Los datos presentados son ficticios e ilustrativos de las capacidades de la plataforma.</p>
-    <p>En producci&#243;n, las proyecciones se alimentan del motor de sensorizaci&#243;n Daredevil y la capa cognitiva Thot, integrados en BoldOS.</p>
-    <div class="method-tags">
-      <span class="method-tag">BoldOS</span><span class="method-tag">Daredevil</span><span class="method-tag">Thot</span>
-      <span class="method-tag">Sensorizaci&#243;n</span><span class="method-tag">Se&#241;ales multitemporales</span>
-      <span class="method-tag">ML</span><span class="method-tag">Multicultivo</span><span class="method-tag">Cono Sur</span>
-    </div>
-  </section>
 </main>
 
 <script>
-
-/* ============================================================ CONFIG ============================================================ */
-const CONFIG = {
-  map: { center: [-25, -56], zoom: 4, minZoom: 3, maxZoom: 18 },
-  countries: {
-    'Argentina': { center: [-33.5,-61.5], zoom: 6, flag: '🇦🇷' },
-    'Brasil':    { center: [-14.5,-51.0], zoom: 5, flag: '🇧🇷' },
-    'Paraguay':  { center: [-23.5,-57.5], zoom: 7, flag: '🇵🇾' },
-    'Uruguay':   { center: [-33.0,-56.0], zoom: 8, flag: '🇺🇾' },
-  },
-  crops: {
-    soja:    { label: 'Soja',    color: '#22c55e' },
-    trigo:   { label: 'Trigo',   color: '#eab308' },
-    maiz:    { label: 'Maíz',    color: '#f97316' },
-    girasol: { label: 'Girasol', color: '#facc15' },
-  },
-  campaigns: ['2024/25','2025/26','2026/27'],
-};
-
-/* Yield ranges for production estimate (ton/ha) */
-const YIELD_RANGES = {
-  soja:    { min: 1.8, max: 4.2, avg: 3.0 },
-  maiz:    { min: 4.0, max: 11.5, avg: 7.5 },
-  trigo:   { min: 1.5, max: 4.5, avg: 2.8 },
-  girasol: { min: 1.2, max: 2.8, avg: 2.0 },
-};
-
-const PROV_COLORS = ['#0f3d2e','#19664d','#7c3aed','#f97316','#22c55e','#eab308','#06b6d4','#ec4899','#3b82f6','#8b5cf6','#14b8a6','#f59e0b','#10b981','#ef4444','#6366f1','#0ea5e9','#d946ef','#84cc16','#f43f5e','#a855f7'];
-let _ci = 0; const _pcm = {};
-function provColor(p) { if(!_pcm[p]){_pcm[p]=PROV_COLORS[_ci%PROV_COLORS.length];_ci++;} return _pcm[p]; }
-
-/* ============================================================ ZONES ============================================================ */
-const ZONES = [
-  // ARGENTINA
-  {dept:'Pergamino',prov:'Buenos Aires',country:'Argentina',region:'Pampeana',lat:-33.90,lng:-60.57,weight:420000},
-  {dept:'Junín',prov:'Buenos Aires',country:'Argentina',region:'Pampeana',lat:-34.59,lng:-60.95,weight:380000},
-  {dept:'Rojas',prov:'Buenos Aires',country:'Argentina',region:'Pampeana',lat:-34.20,lng:-60.73,weight:310000},
-  {dept:'9 de Julio',prov:'Buenos Aires',country:'Argentina',region:'Pampeana',lat:-35.45,lng:-60.88,weight:350000},
-  {dept:'Gral. Villegas',prov:'Buenos Aires',country:'Argentina',region:'Pampeana',lat:-34.98,lng:-63.01,weight:360000},
-  {dept:'Marcos Juárez',prov:'Córdoba',country:'Argentina',region:'Pampeana',lat:-32.70,lng:-62.10,weight:440000},
-  {dept:'Unión',prov:'Córdoba',country:'Argentina',region:'Pampeana',lat:-32.59,lng:-62.89,weight:350000},
-  {dept:'Río Cuarto',prov:'Córdoba',country:'Argentina',region:'Pampeana',lat:-33.13,lng:-64.35,weight:370000},
-  {dept:'Caseros',prov:'Santa Fe',country:'Argentina',region:'Pampeana',lat:-33.04,lng:-61.17,weight:380000},
-  {dept:'Gral. López',prov:'Santa Fe',country:'Argentina',region:'Pampeana',lat:-33.70,lng:-61.70,weight:410000},
-  {dept:'Paraná',prov:'Entre Ríos',country:'Argentina',region:'Pampeana',lat:-31.73,lng:-60.53,weight:260000},
-  {dept:'Victoria',prov:'Entre Ríos',country:'Argentina',region:'Pampeana',lat:-32.62,lng:-60.16,weight:230000},
-  {dept:'Realicó',prov:'La Pampa',country:'Argentina',region:'Pampeana',lat:-35.04,lng:-64.24,weight:180000},
-  {dept:'Chapaleufú',prov:'La Pampa',country:'Argentina',region:'Pampeana',lat:-35.88,lng:-63.72,weight:160000},
-  // BRASIL
-  {dept:'Sorriso',prov:'Mato Grosso',country:'Brasil',region:'Centro-Oeste',lat:-12.55,lng:-55.73,weight:900000},
-  {dept:'Lucas do Rio Verde',prov:'Mato Grosso',country:'Brasil',region:'Centro-Oeste',lat:-13.05,lng:-55.91,weight:780000},
-  {dept:'Sapezal',prov:'Mato Grosso',country:'Brasil',region:'Centro-Oeste',lat:-13.54,lng:-58.76,weight:720000},
-  {dept:'Rondonópolis',prov:'Mato Grosso',country:'Brasil',region:'Centro-Oeste',lat:-16.47,lng:-54.64,weight:650000},
-  {dept:'Rio Verde',prov:'Goiás',country:'Brasil',region:'Centro-Oeste',lat:-17.80,lng:-50.92,weight:580000},
-  {dept:'Jataí',prov:'Goiás',country:'Brasil',region:'Centro-Oeste',lat:-17.88,lng:-51.71,weight:540000},
-  {dept:'Cristalina',prov:'Goiás',country:'Brasil',region:'Centro-Oeste',lat:-16.25,lng:-47.61,weight:460000},
-  {dept:'Dourados',prov:'Mato Grosso do Sul',country:'Brasil',region:'Centro-Oeste',lat:-22.22,lng:-54.81,weight:520000},
-  {dept:'Maracaju',prov:'Mato Grosso do Sul',country:'Brasil',region:'Centro-Oeste',lat:-21.61,lng:-55.17,weight:480000},
-  {dept:'Londrina',prov:'Paraná',country:'Brasil',region:'Sul',lat:-23.31,lng:-51.16,weight:500000},
-  {dept:'Cascavel',prov:'Paraná',country:'Brasil',region:'Sul',lat:-24.96,lng:-53.46,weight:480000},
-  {dept:'Ponta Grossa',prov:'Paraná',country:'Brasil',region:'Sul',lat:-25.09,lng:-50.16,weight:420000},
-  {dept:'Passo Fundo',prov:'Rio Grande do Sul',country:'Brasil',region:'Sul',lat:-28.26,lng:-52.41,weight:460000},
-  {dept:'Cruz Alta',prov:'Rio Grande do Sul',country:'Brasil',region:'Sul',lat:-28.64,lng:-53.60,weight:400000},
-  {dept:'Ijuí',prov:'Rio Grande do Sul',country:'Brasil',region:'Sul',lat:-28.39,lng:-53.91,weight:380000},
-  {dept:'Luís Eduardo Magalhães',prov:'Bahia',country:'Brasil',region:'MATOPIBA',lat:-12.10,lng:-45.79,weight:620000},
-  {dept:'Barreiras',prov:'Bahia',country:'Brasil',region:'MATOPIBA',lat:-12.15,lng:-44.99,weight:550000},
-  {dept:'Balsas',prov:'Maranhão',country:'Brasil',region:'MATOPIBA',lat:-7.53,lng:-46.04,weight:480000},
-  {dept:'Uruçuí',prov:'Piauí',country:'Brasil',region:'MATOPIBA',lat:-7.23,lng:-44.56,weight:420000},
-  {dept:'Uberlândia',prov:'Minas Gerais',country:'Brasil',region:'Sudeste',lat:-18.92,lng:-48.28,weight:440000},
-  // PARAGUAY
-  {dept:'Santa Rita',prov:'Alto Paraná',country:'Paraguay',region:'Oriental',lat:-25.80,lng:-55.09,weight:380000},
-  {dept:'Minga Guazú',prov:'Alto Paraná',country:'Paraguay',region:'Oriental',lat:-25.48,lng:-54.93,weight:320000},
-  {dept:'Encarnación',prov:'Itapúa',country:'Paraguay',region:'Oriental',lat:-27.33,lng:-55.87,weight:350000},
-  {dept:'Hohenau',prov:'Itapúa',country:'Paraguay',region:'Oriental',lat:-27.08,lng:-55.63,weight:300000},
-  {dept:'Curuguaty',prov:'Canindeyú',country:'Paraguay',region:'Oriental',lat:-24.47,lng:-55.70,weight:280000},
-  {dept:'Salto del Guairá',prov:'Canindeyú',country:'Paraguay',region:'Oriental',lat:-24.06,lng:-54.31,weight:260000},
-  {dept:'Coronel Oviedo',prov:'Caaguazú',country:'Paraguay',region:'Oriental',lat:-25.45,lng:-56.44,weight:240000},
-  {dept:'San Pedro',prov:'San Pedro',country:'Paraguay',region:'Oriental',lat:-24.10,lng:-57.07,weight:220000},
-  // URUGUAY
-  {dept:'Mercedes',prov:'Soriano',country:'Uruguay',region:'Litoral',lat:-33.25,lng:-58.03,weight:280000},
-  {dept:'Dolores',prov:'Soriano',country:'Uruguay',region:'Litoral',lat:-33.53,lng:-58.22,weight:220000},
-  {dept:'Colonia',prov:'Colonia',country:'Uruguay',region:'Litoral',lat:-34.47,lng:-57.84,weight:200000},
-  {dept:'Carmelo',prov:'Colonia',country:'Uruguay',region:'Litoral',lat:-33.99,lng:-58.28,weight:180000},
-  {dept:'Paysandú',prov:'Paysandú',country:'Uruguay',region:'Litoral',lat:-32.32,lng:-58.08,weight:250000},
-  {dept:'Young',prov:'Río Negro',country:'Uruguay',region:'Litoral',lat:-32.69,lng:-57.63,weight:230000},
-  {dept:'Trinidad',prov:'Flores',country:'Uruguay',region:'Centro',lat:-33.51,lng:-56.90,weight:160000},
-  {dept:'Durazno',prov:'Durazno',country:'Uruguay',region:'Centro',lat:-33.38,lng:-56.52,weight:140000},
-];
-
-/* ============================================================ DATA GEN ============================================================ */
-const COUNTRY_BASE = {
-  'Argentina':{soja:17800000,trigo:6800000,maiz:9200000,girasol:1900000},
-  'Brasil':{soja:46500000,trigo:3200000,maiz:22000000,girasol:120000},
-  'Paraguay':{soja:3700000,trigo:600000,maiz:1100000,girasol:50000},
-  'Uruguay':{soja:1200000,trigo:450000,maiz:250000,girasol:80000},
-};
-
-const CROP_APT = {
-  'Pampeana':       { soja: 1, trigo: 1, maiz: 1, girasol: 1 },
-  'Sul':            { soja: 1, trigo: 1, maiz: 1, girasol: 0 },
-  'Centro-Oeste':   { soja: 1, trigo: 0, maiz: 1, girasol: 0.05 },
-  'MATOPIBA':       { soja: 1, trigo: 0, maiz: 0.7, girasol: 0 },
-  'Sudeste':        { soja: 1, trigo: 0.15, maiz: 1, girasol: 0 },
-  'Oriental':       { soja: 1, trigo: 0.4, maiz: 0.8, girasol: 0.05 },
-  'Litoral':        { soja: 1, trigo: 1, maiz: 0.6, girasol: 0.5 },
-  'Centro':         { soja: 0.7, trigo: 0.6, maiz: 0.4, girasol: 0.3 },
-};
-
-const PROV_APT_OVERRIDE = {
-  'Goiás':              { trigo: 0.15 },
-  'Mato Grosso do Sul': { trigo: 0.12 },
-  'Mato Grosso':        { trigo: 0, girasol: 0.08 },
-};
-
-function getCropMult(z, cropKey) {
-  const regionApt = CROP_APT[z.region] || { soja:1, trigo:1, maiz:1, girasol:1 };
-  let mult = regionApt[cropKey] ?? 1;
-  const provOverride = PROV_APT_OVERRIDE[z.prov];
-  if (provOverride && provOverride[cropKey] !== undefined) mult = provOverride[cropKey];
-  return mult;
-}
-
-/* Seeded pseudo-random for stable yields per zone+crop */
-function seededRandom(seed) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) { h = ((h << 5) - h + seed.charCodeAt(i)) | 0; }
-  return function() { h = (h * 16807 + 0) % 2147483647; return (h & 0x7fffffff) / 0x7fffffff; };
-}
-
-function genCropData(){
-  const data=[],cw={};
-  for(const z of ZONES) cw[z.country]=(cw[z.country]||0)+z.weight;
-  for(const z of ZONES){const base=COUNTRY_BASE[z.country],zs=z.weight/cw[z.country];
-    for(const[ck,th]of Object.entries(base)){
-      const mult = getCropMult(z, ck);
-      if(mult === 0) continue;
-      const rng = seededRandom(z.dept+ck);
-      const h0=Math.round(th*zs*mult*(0.85+rng()*0.3)),h1=Math.round(h0*(1+(rng()*0.12-0.04))),pr=Math.round(h1*(1+(rng()*0.14-0.03)));
-      if(h0 < 500) continue;
-      const cf=+(0.90+rng()*0.08).toFixed(2);
-      /* Generate stable yield per zone+crop */
-      const yr = YIELD_RANGES[ck] || YIELD_RANGES.soja;
-      const yld = +(yr.min + rng()*(yr.max - yr.min)).toFixed(2);
-      data.push({dept:z.dept,prov:z.prov,country:z.country,region:z.region,lat:z.lat,lng:z.lng,crop:ck,
-        campaigns:{'2024/25':h0,'2025/26':h1,'2026/27':pr},confidence:cf,yield:yld});
-    }}return data;}
-const DATA=genCropData();
-
-/* ============================================================ STATE ============================================================ */
-const STATE={country:'todos',campaign:'2026/27',crop:'todos',region:'todas',province:'todas',dept:'todos',filtered:DATA};
-
-/* ============================================================ HELPERS ============================================================ */
-function fmt(n){if(n>=1e6)return(n/1e6).toFixed(2)+' M';if(n>=1e3)return(n/1e3).toFixed(1)+' k';return n.toString();}
-function fmtHa(n){return fmt(n)+' ha';}
-function pct(a,b){return b===0?0:+((a-b)/b*100).toFixed(1);}
-function sum(arr){return arr.reduce((s,d)=>s+d,0);}
-function groupBy(arr,key){const m={};for(const d of arr)(m[d[key]]=m[d[key]]||[]).push(d);return m;}
-function prevCampaign(c){const i=CONFIG.campaigns.indexOf(c);return i>0?CONFIG.campaigns[i-1]:null;}
-function gv(d,c){return d.campaigns[c]||0;}
-
-/* ============================================================ FILTERS (province fix) ============================================================ */
-function computeFiltered(){let f=DATA;
-  if(STATE.country!=='todos')f=f.filter(d=>d.country===STATE.country);
-  if(STATE.crop!=='todos')f=f.filter(d=>d.crop===STATE.crop);
-  if(STATE.region!=='todas')f=f.filter(d=>d.region===STATE.region);
-  if(STATE.province!=='todas')f=f.filter(d=>d.prov===STATE.province);
-  if(STATE.dept!=='todos')f=f.filter(d=>d.dept===STATE.dept);
-  STATE.filtered=f;}
-
-function filteredNoCrop(){let f=DATA;
-  if(STATE.country!=='todos')f=f.filter(d=>d.country===STATE.country);
-  if(STATE.region!=='todas')f=f.filter(d=>d.region===STATE.region);
-  if(STATE.province!=='todas')f=f.filter(d=>d.prov===STATE.province);
-  if(STATE.dept!=='todos')f=f.filter(d=>d.dept===STATE.dept);
-  return f;}
-
-function applyFilters(){
-  STATE.country=document.getElementById('f-country').value;
-  STATE.campaign=document.getElementById('f-campaign').value;
-  STATE.crop=document.getElementById('f-crop').value;
-  STATE.region=document.getElementById('f-region').value;
-  STATE.province=document.getElementById('f-province').value;
-  STATE.dept=document.getElementById('f-dept').value;
-  computeFiltered();renderAll();
-  if(map&&STATE.country!=='todos'&&CONFIG.countries[STATE.country]){const c=CONFIG.countries[STATE.country];map.flyTo(c.center,c.zoom,{duration:1});}
-  else if(map&&STATE.country==='todos')map.flyTo(CONFIG.map.center,CONFIG.map.zoom,{duration:1});}
-
-function resetFilters(){
-  STATE.country='todos';STATE.campaign='2026/27';STATE.crop='todos';STATE.region='todas';STATE.province='todas';STATE.dept='todos';
-  ['f-country','f-campaign','f-crop','f-region','f-province','f-dept'].forEach((id,i)=>{document.getElementById(id).value=['todos','2026/27','todos','todas','todas','todos'][i];});
-  computeFiltered();renderAll();if(map)map.flyTo(CONFIG.map.center,CONFIG.map.zoom,{duration:1});}
-
-function populateFilterOptions(){
-  const cs=document.getElementById('f-country');cs.innerHTML='<option value="todos">Todos</option>';
-  Object.entries(CONFIG.countries).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.flag+' '+k;cs.appendChild(o);});
-
-  /* FIX: separate cascade functions so province change only cascades departments */
-  function cascadeFromCountry(){
-    const ctry=document.getElementById('f-country').value;
-    let sub=DATA;if(ctry!=='todos')sub=sub.filter(d=>d.country===ctry);
-    const rs=document.getElementById('f-region');
-    const regs=[...new Set(sub.map(d=>d.region))].sort();
-    rs.innerHTML='<option value="todas">Todas</option>';
-    regs.forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;rs.appendChild(o);});
-    cascadeFromRegion();
+  // Fecha humana en footer
+  const dateEl = document.getElementById('footerDate');
+  if (dateEl) {
+    const now = new Date();
+    dateEl.textContent = `Última actualización · ${now.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
   }
-  function cascadeFromRegion(){
-    const ctry=document.getElementById('f-country').value;
-    const reg=document.getElementById('f-region').value;
-    let sub=DATA;
-    if(ctry!=='todos')sub=sub.filter(d=>d.country===ctry);
-    if(reg!=='todas')sub=sub.filter(d=>d.region===reg);
-    const ps=document.getElementById('f-province');
-    const savedProv=ps.value;
-    const provs=[...new Set(sub.map(d=>d.prov))].sort();
-    ps.innerHTML='<option value="todas">Todas</option>';
-    provs.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;ps.appendChild(o);});
-    /* Restore selection if still valid */
-    if(provs.includes(savedProv)) ps.value=savedProv;
-    cascadeFromProvince();
-  }
-  function cascadeFromProvince(){
-    const ctry=document.getElementById('f-country').value;
-    const reg=document.getElementById('f-region').value;
-    const pv=document.getElementById('f-province').value;
-    let sub=DATA;
-    if(ctry!=='todos')sub=sub.filter(d=>d.country===ctry);
-    if(reg!=='todas')sub=sub.filter(d=>d.region===reg);
-    if(pv!=='todas')sub=sub.filter(d=>d.prov===pv);
-    const ds=document.getElementById('f-dept');
-    const savedDept=ds.value;
-    const depts=[...new Set(sub.map(d=>d.dept))].sort();
-    ds.innerHTML='<option value="todos">Todos</option>';
-    depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;ds.appendChild(o);});
-    if(depts.includes(savedDept)) ds.value=savedDept;
-  }
-
-  cs.addEventListener('change',cascadeFromCountry);
-  document.getElementById('f-region').addEventListener('change',cascadeFromRegion);
-  document.getElementById('f-province').addEventListener('change',cascadeFromProvince);
-  cascadeFromCountry();
-}
-
-/* ============================================================ RENDER KPIs (3 only) ============================================================ */
-function renderKPIs(){
-  const f=STATE.filtered, camp=STATE.campaign, prev=prevCampaign(camp);
-  const tp=sum(f.map(d=>gv(d,camp))), tpv=prev?sum(f.map(d=>gv(d,prev))):null, dt=prev?pct(tp,tpv):null;
-
-  /* Cultivo dominante */
-  const bc=groupBy(f,'crop');let dc='',dm=0;
-  for(const[k,arr]of Object.entries(bc)){const s=sum(arr.map(d=>gv(d,camp)));if(s>dm){dm=s;dc=k;}}
-
-  /* Producción estimada (Yield integrated) */
-  let totalProd = 0;
-  for(const d of f){ totalProd += gv(d,camp) * d.yield; }
-  totalProd = Math.round(totalProd);
-
-  const nc=[...new Set(f.map(d=>d.country))].length;
-
-  const cards=[
-    {label:'Superficie total proyectada',value:fmtHa(tp),delta:dt,sub:`${camp} · ${nc} ${nc===1?'país':'países'}`,border:'var(--c-primary-mid)'},
-    {label:'Cultivo dominante',value:CONFIG.crops[dc]?.label||'—',sub:fmtHa(dm)+' · '+(dm/tp*100||0).toFixed(0)+'% del total',border:CONFIG.crops[dc]?.color||'var(--c-primary)'},
-    {label:'Producción estimada',value:fmt(totalProd)+' ton',sub:'Sup. × Rinde prom. por zona',border:'var(--c-secondary)'},
-  ];
-  document.getElementById('kpi-row').innerHTML=cards.map(c=>{
-    const dh=c.delta!==null&&c.delta!==undefined?`<div class="kpi-delta ${c.delta>=0?'up':'down'}">${c.delta>=0?'▲':'▼'} ${Math.abs(c.delta)}%</div>`:'';
-    return`<div class="kpi-card" style="border-left-color:${c.border}"><div class="kpi-label">${c.label}</div><div class="kpi-value">${c.value}</div>${c.sub?`<div class="kpi-sub">${c.sub}</div>`:''}${dh}</div>`;
-  }).join('');
-}
-
-/* ============================================================ CHARTS ============================================================ */
-function renderBarChart(){const f=STATE.filtered,camp=STATE.campaign,bc=groupBy(f,'crop');const mx=Math.max(...Object.values(bc).map(a=>sum(a.map(d=>gv(d,camp)))),1);
-  document.getElementById('chart-bars').innerHTML=Object.entries(CONFIG.crops).map(([k,cfg])=>{const v=sum((bc[k]||[]).map(d=>gv(d,camp)));return`<div class="bar-row"><span class="bar-label">${cfg.label}</span><div class="bar-track"><div class="bar-fill" style="width:${v/mx*100}%;background:${cfg.color};"><span class="bar-fill-inner">${fmtHa(v)}</span></div></div></div>`;}).join('');}
-
-function renderShareChart(){const f=STATE.filtered,camp=STATE.campaign,bc=groupBy(f,'crop'),tot=sum(f.map(d=>gv(d,camp)));
-  const segs=Object.entries(CONFIG.crops).map(([k,cfg])=>{const v=sum((bc[k]||[]).map(d=>gv(d,camp)));return{l:cfg.label,c:cfg.color,p:tot?+(v/tot*100).toFixed(1):0};});
-  document.getElementById('chart-share').innerHTML=`<div class="share-chart">${segs.map(s=>`<div class="share-segment" style="width:${s.p}%;background:${s.c};">${s.p>6?s.p+'%':''}</div>`).join('')}</div><div class="share-legend">${segs.map(s=>`<span class="share-legend-item"><span class="share-legend-dot" style="background:${s.c}"></span>${s.l}: ${s.p}%</span>`).join('')}</div>`;}
-
-function renderTemporalChart(){const f=STATE.filtered,camps=CONFIG.campaigns,bc=groupBy(f,'crop');
-  const mx=Math.max(...camps.flatMap(c=>Object.values(bc).map(a=>sum(a.map(d=>gv(d,c))))),1);const bH=120;
-  document.getElementById('chart-temporal').innerHTML=`<div class="temporal-row">${camps.map(c=>`<div class="temporal-bar-group">${Object.entries(CONFIG.crops).map(([k,cfg])=>{const v=sum((bc[k]||[]).map(d=>gv(d,c)));return`<div class="temporal-bar" style="height:${v/mx*bH}px;background:${cfg.color};" title="${cfg.label}: ${fmtHa(v)} (${c})"></div>`;}).join('')}</div>`).join('')}</div><div class="temporal-labels">${camps.map(c=>`<span class="temporal-label">${c}</span>`).join('')}</div><div class="temporal-legend">${Object.entries(CONFIG.crops).map(([k,cfg])=>`<span class="temporal-legend-item"><span class="temporal-legend-dot" style="background:${cfg.color}"></span>${cfg.label}</span>`).join('')}</div>`;}
-
-function renderProvinceChart(){const f=STATE.filtered,camp=STATE.campaign,prev=prevCampaign(camp),el=document.getElementById('chart-province');
-  if(!prev){el.innerHTML='<p style="font-size:.8rem;color:var(--c-text-muted);">Sin campaña anterior.</p>';return;}
-  const ds=Object.entries(groupBy(f,'prov')).map(([k,arr])=>({prov:k,delta:pct(sum(arr.map(d=>gv(d,camp))),sum(arr.map(d=>gv(d,prev)))),color:provColor(k)})).sort((a,b)=>b.delta-a.delta).slice(0,12);
-  const ma=Math.max(...ds.map(d=>Math.abs(d.delta)),1);
-  el.innerHTML=ds.map(d=>`<div class="bar-row"><span class="bar-label">${d.prov}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.abs(d.delta)/ma*80}%;background:${d.delta>=0?d.color:'var(--c-danger)'};"><span class="bar-fill-inner">${d.delta>=0?'+':''}${d.delta}%</span></div></div></div>`).join('');}
-
-/* ============================================================ TABLE (Rinde + Producción, no Precisión) ============================================================ */
-function renderTable(){
-  const f=STATE.filtered, camp=STATE.campaign, prev=prevCampaign(camp), agg={};
-  for(const d of f){
-    const k=d.country+'|'+d.crop+'|'+d.prov;
-    if(!agg[k]) agg[k]={country:d.country,crop:d.crop,prov:d.prov,cur:0,prv:0,yieldSum:0,yieldN:0};
-    agg[k].cur+=gv(d,camp);
-    agg[k].prv+=prev?gv(d,prev):0;
-    agg[k].yieldSum+=d.yield;
-    agg[k].yieldN++;
-  }
-  document.getElementById('table-body').innerHTML=Object.values(agg).sort((a,b)=>b.cur-a.cur).slice(0,50).map(r=>{
-    const dl=r.cur-r.prv, dp=prev?pct(r.cur,r.prv):'—';
-    const avgYld = r.yieldN>0 ? (r.yieldSum/r.yieldN).toFixed(2) : '—';
-    const prod = r.yieldN>0 ? Math.round(r.cur * (r.yieldSum/r.yieldN)) : 0;
-    const fl=CONFIG.countries[r.country]?.flag||'';
-    return`<tr><td>${fl} ${r.country}</td><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${CONFIG.crops[r.crop]?.color};margin-right:6px;"></span>${CONFIG.crops[r.crop]?.label}</td><td>${r.prov}</td><td>${fmtHa(r.prv)}</td><td><strong>${fmtHa(r.cur)}</strong></td><td style="color:${dl>=0?'var(--c-success)':'var(--c-danger)'}">${dl>=0?'+':''}${fmtHa(Math.abs(dl))}</td><td style="color:${dp>=0?'var(--c-success)':'var(--c-danger)'}">${dp>=0&&prev?'+':''}${dp}%</td><td>${avgYld}</td><td><strong>${fmt(prod)} ton</strong></td></tr>`;
-  }).join('');
-  document.getElementById('table-subtitle').textContent=`Campaña ${camp} — ${STATE.country!=='todos'?STATE.country:'Cono Sur'}`;
-}
-
-/* ============================================================ INSIGHTS ============================================================ */
-function renderInsights(){const f=STATE.filtered,camp=STATE.campaign,prev=prevCampaign(camp),ins=[];
-  if(prev){const tc=sum(f.map(d=>gv(d,camp))),tp=sum(f.map(d=>gv(d,prev))),d=pct(tc,tp);
-    ins.push(d>0?{text:`Superficie total proyectada para ${camp}: crecimiento del ${d}% vs ${prev}, alcanzando ${fmtHa(tc)}.`,type:'success'}:{text:`Superficie total se contrae ${Math.abs(d)}% vs ${prev}.`,type:'warning'});}
-  if(prev){const bc=groupBy(f,'crop');let best={crop:'',d:-Infinity};for(const[k,a]of Object.entries(bc)){const d=pct(sum(a.map(x=>gv(x,camp))),sum(a.map(x=>gv(x,prev))));if(d>best.d)best={crop:k,d};}if(best.crop)ins.push({text:`${CONFIG.crops[best.crop]?.label} lidera el crecimiento interanual con +${best.d}%.`,type:'highlight'});}
-  const byC=groupBy(f,'country');if(Object.keys(byC).length>1){let tc='',tv=0;const tot=sum(f.map(d=>gv(d,STATE.campaign)));for(const[k,a]of Object.entries(byC)){const v=sum(a.map(d=>gv(d,STATE.campaign)));if(v>tv){tv=v;tc=k;}}ins.push({text:`${tc} concentra el ${(tv/tot*100).toFixed(0)}% de la superficie proyectada en el Cono Sur.`,type:''});}
-  /* Production insight */
-  let totalProd=0; for(const d of f) totalProd+=gv(d,camp)*d.yield;
-  ins.push({text:`Producción total estimada: ${fmt(Math.round(totalProd))} toneladas sobre ${fmtHa(sum(f.map(d=>gv(d,camp))))} proyectados.`,type:'success'});
-  if(prev){const bp=groupBy(f,'prov');let t={p:'',d:-Infinity,c:''};for(const[k,a]of Object.entries(bp)){const d=pct(sum(a.map(x=>gv(x,camp))),sum(a.map(x=>gv(x,prev))));if(d>t.d)t={p:k,d,c:a[0].country};}ins.push({text:`${t.p} (${t.c}): mayor expansión relativa con +${t.d}%.`,type:'success'});}
-  document.getElementById('insight-list').innerHTML=ins.map(i=>`<div class="insight-item ${i.type}"><span class="insight-icon">${{success:'✅',warning:'⚠️',highlight:'🔮','':'📌'}[i.type]}</span><span>${i.text}</span></div>`).join('');}
-
-/* ============================================================ SIDEBAR ============================================================ */
-function renderSidebarStats(){const f=STATE.filtered,camp=STATE.campaign;
-  document.getElementById('sidebar-stats-content').innerHTML=`<div class="geo-info-row"><span class="geo-label">Países</span><span class="geo-value">${new Set(f.map(d=>d.country)).size}</span></div><div class="geo-info-row"><span class="geo-label">Prov./Estados</span><span class="geo-value">${new Set(f.map(d=>d.prov)).size}</span></div><div class="geo-info-row"><span class="geo-label">Zonas</span><span class="geo-value">${new Set(f.map(d=>d.dept)).size}</span></div><div class="geo-info-row"><span class="geo-label">Sup. total</span><span class="geo-value">${fmtHa(sum(f.map(d=>gv(d,camp))))}</span></div>`;}
-function renderLegend(){document.getElementById('legend-list').innerHTML=[...new Set(STATE.filtered.map(d=>d.prov))].sort().slice(0,18).map(p=>`<li class="legend-item"><span class="legend-dot" style="background:${provColor(p)}"></span>${p}</li>`).join('');}
-
-/* ============================================================ MAP + REAL PARCELS + SIMULATED LOTS ============================================================ */
-let map,tileLayer,circlesLayer,lotsLayer,highlightCircle;
-const TILES={osm:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',terrain:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',satellite:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'};
-
-/* Real parcel GeoJSON URLs — matched from partidos-config */
-const PARCEL_URLS = {
-  'Pergamino':      'https://storage.googleapis.com/pubic-data-partidos/partido_082.geojson',
-  'Junín':          'https://storage.googleapis.com/pubic-data-partidos/partido_054.geojson',
-  'Rojas':          'https://storage.googleapis.com/pubic-data-partidos/partido_090.geojson',
-  '9 de Julio':     'https://storage.googleapis.com/pubic-data-partidos/partido_077.geojson',
-  'Gral. Villegas': 'https://storage.googleapis.com/pubic-data-partidos/partido_050.geojson',
-  'Marcos Juárez':  'https://storage.googleapis.com/pubic-data-partidos/Cordoba/cordoba_MARCOS_JUAREZ.geojson',
-  'Unión':          'https://storage.googleapis.com/pubic-data-partidos/Cordoba/cordoba_UNION.geojson',
-  'Río Cuarto':     'https://storage.googleapis.com/pubic-data-partidos/Cordoba/cordoba_RIO_CUARTO.geojson',
-};
-
-/* Cache for loaded GeoJSONs: dept→FeatureCollection */
-const _parcelCache = {};
-const _parcelLoading = {};
-
-async function loadRealParcels(dept){
-  if(_parcelCache[dept]) return _parcelCache[dept];
-  if(_parcelLoading[dept]) return _parcelLoading[dept];
-  const url = PARCEL_URLS[dept];
-  if(!url) return null;
-  _parcelLoading[dept] = fetch(url)
-    .then(r=>{if(!r.ok) throw new Error(r.status); return r.json();})
-    .then(geojson=>{_parcelCache[dept]=geojson; delete _parcelLoading[dept]; return geojson;})
-    .catch(e=>{console.warn('Parcel load failed for '+dept,e); delete _parcelLoading[dept]; return null;});
-  return _parcelLoading[dept];
-}
-
-function initMap(){try{
-  map=L.map('map',{center:CONFIG.map.center,zoom:CONFIG.map.zoom,minZoom:CONFIG.map.minZoom,maxZoom:CONFIG.map.maxZoom});
-  tileLayer=L.tileLayer(TILES.osm,{attribution:'© CartoDB / ESRI',maxZoom:18}).addTo(map);
-  circlesLayer=L.layerGroup().addTo(map);
-  lotsLayer=L.layerGroup().addTo(map);
-  map.on('zoomend', onZoomChange);
-  map.on('moveend', function(){ if(map.getZoom()>=11) debouncedRenderLots(); });
-  document.querySelectorAll('.tile-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');map.removeLayer(tileLayer);tileLayer=L.tileLayer(TILES[btn.dataset.tile],{attribution:'© CartoDB / ESRI',maxZoom:18}).addTo(map);});});
-  }catch(e){document.getElementById('map').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--c-text-muted);">Mapa no disponible.</div>';}}
-
-/* Generate realistic agricultural lots — large, organic, offset from city centers */
-function generateSimLots(lat, lng, cropEntries, camp) {
-  const lots = [];
-  const rng = seededRandom(lat.toFixed(3)+lng.toFixed(3));
-  const cropList = Object.entries(cropEntries).filter(([k,v])=>v>0);
-  if(cropList.length===0) return lots;
-
-  const totalArea = cropList.reduce((s,[k,v])=>s+v,0);
-  const cropWeights = cropList.map(([k,v])=>({crop:k, w:v/totalArea}));
-  function pickCrop(){
-    let r=rng(), acc=0;
-    for(const cw of cropWeights){acc+=cw.w; if(r<=acc) return cw.crop;}
-    return cropWeights[cropWeights.length-1].crop;
-  }
-
-  /* Lat-degree to meters factor & correction for longitude */
-  const mPerDegLat = 111320;
-  const cosLat = Math.cos(lat * Math.PI / 180);
-
-  /* Place 3-6 "establecimientos" (farms) scattered 3-10 km from the city point */
-  const numFarms = 3 + Math.floor(rng()*4);
-  let lotIdx = 0;
-
-  for(let f=0; f<numFarms; f++){
-    /* Farm center: offset from city, avoid overlap by distributing angularly */
-    const baseAngle = (f/numFarms)*Math.PI*2 + rng()*0.8;
-    const dist = 0.03 + rng()*0.06; /* ~3-10 km in degrees */
-    const farmLat = lat + Math.cos(baseAngle)*dist;
-    const farmLng = lng + Math.sin(baseAngle)*dist / cosLat;
-
-    /* This farm's grid rotation: follows local road/cadastral angle */
-    const rot = (rng()-0.5)*0.15; /* ±~8.5° */
-    const cR = Math.cos(rot), sR = Math.sin(rot);
-
-    /* Farm has 2-5 lots sharing edges (like a real establishment) */
-    const numLots = 2 + Math.floor(rng()*4);
-
-    /* Road gap between lots (~30m alambrado/camino) */
-    const gap = 0.0003;
-
-    /* Build lots by subdivision: start with a cursor and place lots adjacently */
-    let cursorLat = 0, cursorLng = 0;
-    let rowH = 0;
-    let col = 0;
-    const maxCols = 2 + Math.floor(rng()*2); /* 2-3 per row */
-
-    for(let i=0; i<numLots; i++){
-      /* Lot dimensions: 1-3 km per side → 150-800 ha */
-      const lotW_m = 800 + rng()*2200; /* 800-3000m wide */
-      const lotH_m = 800 + rng()*2200; /* 800-3000m tall */
-      const lotW = lotW_m / (mPerDegLat * cosLat);
-      const lotH = lotH_m / mPerDegLat;
-      const ha = Math.round(lotW_m * lotH_m / 10000);
-
-      /* Irregular corners: jitter each vertex 20-80m */
-      const j = () => (rng()-0.5) * 0.0008;
-
-      /* 4 corners relative to cursor, BEFORE rotation */
-      const raw = [
-        [cursorLat + j(),            cursorLng + j()],
-        [cursorLat + j(),            cursorLng + lotW + j()],
-        [cursorLat + lotH + j(),     cursorLng + lotW + j()],
-        [cursorLat + lotH + j(),     cursorLng + j()],
-      ];
-
-      /* Occasionally make trapezoidal: pinch one side */
-      if(rng() < 0.25){
-        const pinch = 0.15 + rng()*0.2;
-        const side = Math.floor(rng()*4);
-        if(side===0){ raw[0][1] += lotW*pinch; raw[3][1] += lotW*pinch; }
-        else if(side===1){ raw[1][1] -= lotW*pinch; raw[2][1] -= lotW*pinch; }
-        else if(side===2){ raw[0][0] += lotH*pinch; raw[1][0] += lotH*pinch; }
-        else { raw[2][0] -= lotH*pinch; raw[3][0] -= lotH*pinch; }
-      }
-
-      /* Rotate and translate to world coords */
-      const corners = raw.map(([dl,dn])=>[
-        farmLat + dl*cR - dn*sR,
-        farmLng + dl*sR + dn*cR
-      ]);
-
-      lotIdx++;
-      lots.push({
-        corners, crop: pickCrop(),
-        ha: Math.max(80, Math.min(ha, 900)),
-        id: `E${f+1}-L${i+1}`
-      });
-
-      /* Advance cursor: place next lot to the right, wrap to next row */
-      col++;
-      cursorLng += lotW + gap;
-      rowH = Math.max(rowH, lotH);
-      if(col >= maxCols){
-        col = 0;
-        cursorLng = (rng()-0.5)*0.001; /* slight stagger on new row */
-        cursorLat += rowH + gap + rng()*0.0005;
-        rowH = 0;
-      }
-    }
-  }
-  return lots;
-}
-
-function onZoomChange() {
-  if(!map || !lotsLayer) return;
-  const z = map.getZoom();
-  if(z >= 11) {
-    debouncedRenderLots();
-  } else {
-    lotsLayer.clearLayers();
-  }
-}
-
-/* Debounce utility */
-function debounce(fn, ms){
-  let timer;
-  return function(...args){ clearTimeout(timer); timer = setTimeout(()=>fn.apply(this,args), ms); };
-}
-const debouncedRenderLots = debounce(renderLots, 300);
-
-/* Main lot render — loads GeoJSON only for visible, data-bearing zones */
-let _renderV = 0;
-async function renderLots() {
-  if(!lotsLayer) return;
-  const ver = ++_renderV;
-  lotsLayer.clearLayers();
-  const camp = STATE.campaign;
-  const bounds = map.getBounds();
-  const zoom = map.getZoom();
-  
-  /* Aggregate visible zones with data */
-  const byD = {};
-  for(const d of STATE.filtered){
-    if(!bounds.contains([d.lat,d.lng])) continue;
-    if(!byD[d.dept]) byD[d.dept]={dept:d.dept,prov:d.prov,country:d.country,lat:d.lat,lng:d.lng,crops:{}};
-    byD[d.dept].crops[d.crop]=(byD[d.dept].crops[d.crop]||0)+gv(d,camp);
-  }
-
-  const zones = Object.values(byD);
-  
-  /* Render simulated lots immediately for zones without real data */
-  for(const z of zones){
-    if(!PARCEL_URLS[z.dept]){
-      renderSimulatedLots(generateSimLots(z.lat, z.lng, z.crops, camp), z, zoom);
-    }
-  }
-
-  /* Then load real parcels async — only for visible zones that have URLs */
-  for(const z of zones){
-    if(!PARCEL_URLS[z.dept]) continue;
-    const geojson = await loadRealParcels(z.dept);
-    if(_renderV !== ver) return; /* stale — user moved */
-    if(geojson && geojson.features){
-      renderRealParcels(geojson, z, zoom);
-    } else {
-      renderSimulatedLots(generateSimLots(z.lat, z.lng, z.crops, camp), z, zoom);
-    }
-  }
-}
-
-/* Render real GeoJSON parcels — single L.geoJSON call for speed */
-function renderRealParcels(geojson, zoneInfo, zoom){
-  const cropList = Object.entries(zoneInfo.crops).filter(([k,v])=>v>0);
-  if(cropList.length===0) return;
-  const totalArea = cropList.reduce((s,[k,v])=>s+v,0);
-  const cropWeights = cropList.map(([k,v])=>({crop:k, w:v/totalArea}));
-  const rng = seededRandom(zoneInfo.dept+'parcel');
-  function pickCrop(){
-    let r=rng(), acc=0;
-    for(const cw of cropWeights){acc+=cw.w; if(r<=acc) return cw.crop;}
-    return cropWeights[cropWeights.length-1].crop;
-  }
-
-  const bounds = map.getBounds();
-  const maxF = zoom >= 14 ? 500 : zoom >= 12 ? 200 : 80;
-  let labelCount = 0;
-  const maxLabels = zoom >= 15 ? 100 : 50;
-
-  /* Pre-assign crops and filter to visible */
-  const visible = [];
-  for(let i=0; i<geojson.features.length; i++){
-    if(visible.length >= maxF) break;
-    const f = geojson.features[i];
-    if(!f.geometry) continue;
-    const gt = f.geometry.type;
-    if(gt !== 'Polygon' && gt !== 'MultiPolygon') continue;
-    let fc;
-    try { fc = gt==='Polygon' ? f.geometry.coordinates[0][0] : f.geometry.coordinates[0][0][0]; } catch(e){continue;}
-    if(!fc || !bounds.contains([fc[1],fc[0]])) continue;
-    f._crop = pickCrop();
-    f._color = CONFIG.crops[f._crop]?.color || '#888';
-    const pr = f.properties||{};
-    f._ha = pr.hectareas||pr.ha||pr.superficie||pr.area||pr.HECTAREAS||pr.HA||pr.SUPERFICIE||0;
-    if(!f._ha && pr.shape_area) f._ha = Math.round(pr.shape_area/10000);
-    if(!f._ha) f._ha = Math.round(50+rng()*300);
-    visible.push(f);
-  }
-
-  /* Single L.geoJSON call */
-  const layer = L.geoJSON({type:'FeatureCollection',features:visible},{
-    style: function(feature){
-      return {
-        color:'rgba(255,255,255,0.7)', weight:zoom>=14?1.5:0.8,
-        fillColor:feature._color, fillOpacity:zoom>=14?0.50:0.32
-      };
-    },
-    onEachFeature: function(feature, lyr){
-      lyr.bindPopup(
-        '<div style="font-family:var(--ff);min-width:170px">'+
-        '<div style="font-weight:700;font-size:.88rem;margin-bottom:4px">'+zoneInfo.dept+'</div>'+
-        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
-        '<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+feature._color+'"></span>'+
-        '<span style="font-weight:600">'+CONFIG.crops[feature._crop]?.label+'</span></div>'+
-        (feature._ha?'<div style="font-size:.82rem;color:#444">Superficie: <strong>'+feature._ha+' ha</strong></div>':'')+
-        '<div style="font-size:.66rem;color:#999;margin-top:5px;border-top:1px solid #eee;padding-top:4px">Parcela catastral real</div></div>'
-      ,{maxWidth:220});
-      lyr.on('mouseover',function(e){e.target.setStyle({fillOpacity:0.65,weight:2.5,color:'#fff'});});
-      lyr.on('mouseout',function(e){e.target.setStyle({fillOpacity:zoom>=14?0.50:0.32,weight:zoom>=14?1.5:0.8,color:'rgba(255,255,255,0.7)'});});
-      if(zoom>=14 && feature._ha && labelCount<maxLabels){
-        try{
-          const c=lyr.getBounds().getCenter();
-          L.marker([c.lat,c.lng],{icon:L.divIcon({className:'lot-label',
-            html:'<div style="font-size:'+(zoom>=15?'9px':'7px')+';font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8),0 0 8px rgba(0,0,0,.5);white-space:nowrap;text-align:center;line-height:1.3">'+feature._ha+' ha<br><span style="font-size:6px;opacity:.85">'+CONFIG.crops[feature._crop]?.label+'</span></div>',
-            iconAnchor:[16,8]}),interactive:false}).addTo(lotsLayer);
-          labelCount++;
-        }catch(e){}
-      }
-    }
-  });
-  lotsLayer.addLayer(layer);
-}
-
-/* Render simulated lots */
-function renderSimulatedLots(lots, zoneInfo, zoom){
-  let labelCount=0; const maxLabels=30;
-  for(const lot of lots){
-    const color = CONFIG.crops[lot.crop]?.color||'#888';
-    const poly = L.polygon(lot.corners,{
-      color:'rgba(255,255,255,0.7)',weight:zoom>=13?1.5:0.8,
-      fillColor:color,fillOpacity:zoom>=13?0.45:0.28
-    });
-    poly.bindPopup(
-      '<div style="font-family:var(--ff);min-width:170px">'+
-      '<div style="font-weight:700;font-size:.88rem;margin-bottom:4px">'+lot.id+' \u00b7 '+zoneInfo.dept+'</div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
-      '<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+color+'"></span>'+
-      '<span style="font-weight:600">'+CONFIG.crops[lot.crop]?.label+'</span></div>'+
-      '<div style="font-size:.82rem;color:#444">Superficie: <strong>'+lot.ha+' ha</strong></div>'+
-      '<div style="font-size:.66rem;color:#999;margin-top:5px;border-top:1px solid #eee;padding-top:4px">Lote simulado \u2014 datos ilustrativos</div></div>'
-    ,{maxWidth:220});
-    poly.on('mouseover',function(){this.setStyle({fillOpacity:0.6,weight:2.5,color:'#fff'});});
-    poly.on('mouseout',function(){this.setStyle({fillOpacity:zoom>=13?0.45:0.28,weight:zoom>=13?1.5:0.8,color:'rgba(255,255,255,0.7)'});});
-    lotsLayer.addLayer(poly);
-    if(zoom>=13 && labelCount<maxLabels){
-      const ctr=[(lot.corners[0][0]+lot.corners[2][0])/2,(lot.corners[0][1]+lot.corners[2][1])/2];
-      L.marker(ctr,{icon:L.divIcon({className:'lot-label',
-        html:'<div style="font-size:'+(zoom>=15?'9px':'7px')+';font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8),0 0 8px rgba(0,0,0,.5);white-space:nowrap;text-align:center;line-height:1.3">'+lot.ha+' ha'+(zoom>=14?'<br><span style="font-size:6px;opacity:.85">'+CONFIG.crops[lot.crop]?.label+'</span>':'')+'</div>',
-        iconAnchor:[16,8]}),interactive:false}).addTo(lotsLayer);
-      labelCount++;
-    }
-  }
-}
-
-/* Circles for all zones — fast, no GeoJSON loading */
-function renderMapCircles(){if(!circlesLayer)return;circlesLayer.clearLayers();const camp=STATE.campaign,byD={};
-  for(const d of STATE.filtered){if(!byD[d.dept])byD[d.dept]={dept:d.dept,prov:d.prov,country:d.country,lat:d.lat,lng:d.lng,total:0,crops:{}};byD[d.dept].total+=gv(d,camp);byD[d.dept].crops[d.crop]=(byD[d.dept].crops[d.crop]||0)+gv(d,camp);}
-  const mx=Math.max(...Object.values(byD).map(z=>z.total),1);
-  for(const z of Object.values(byD)){const r=5000+(z.total/mx)*35000,cl=provColor(z.prov);
-    const hasParcels=!!PARCEL_URLS[z.dept];
-    const dominantColor=hasParcels?(CONFIG.crops[Object.entries(z.crops).sort((a,b)=>b[1]-a[1])[0]?.[0]]?.color||cl):cl;
-    const circle=L.circle([z.lat,z.lng],{radius:r,color:dominantColor,fillColor:dominantColor,fillOpacity:0.25,weight:1.5,dashArray:hasParcels?'5,5':null});
-    const cl2=Object.entries(z.crops).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<span style="color:'+CONFIG.crops[k]?.color+'">'+CONFIG.crops[k]?.label+': '+fmtHa(v)+'</span>').join('<br>');
-    circle.bindPopup('<div style="font-family:var(--ff)"><strong style="font-size:.9rem">'+z.dept+'</strong>'+(hasParcels?' <span style="font-size:.55rem;background:var(--c-accent);color:#000;padding:1px 5px;border-radius:8px;font-weight:700">CATASTRO</span>':'')+'<br><span style="font-size:.75rem;color:#666">'+z.prov+', '+(CONFIG.countries[z.country]?.flag||'')+' '+z.country+'</span><br><br>'+cl2+'<br><br>Total: <strong>'+fmtHa(z.total)+'</strong></div>',{maxWidth:240});
-    circle.on('mouseover',function(){this.setStyle({fillOpacity:0.45,weight:2.5});});
-    circle.on('mouseout',function(){if(highlightCircle!==this)this.setStyle({fillOpacity:0.25,weight:1.5});});
-    circle.deptName=z.dept;circlesLayer.addLayer(circle);
-    L.marker([z.lat,z.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:9px;font-weight:600;color:'+dominantColor+';text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;">'+z.dept+'</div>',iconAnchor:[0,-8]}),interactive:false}).addTo(circlesLayer);}
-  onZoomChange();
-}
-
-function focusZone(dn){if(!map||!circlesLayer)return;
-  if(highlightCircle){
-    try{highlightCircle.setStyle({fillOpacity:0.25,weight:1.5});}catch(e){}
-  }
-  circlesLayer.eachLayer(l=>{
-    if(l.deptName===dn){
-      highlightCircle=l;
-      try{l.setStyle({fillOpacity:0.55,weight:3});}catch(e){}
-      const center = l.getLatLng ? l.getLatLng() : (l.getBounds ? l.getBounds().getCenter() : null);
-      if(center) map.flyTo(center, 10, {duration:0.8});
-      if(l.openPopup) l.openPopup();
-    }
-  });}
-
-/* ============================================================ TABS ============================================================ */
-function switchTab(id){
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('panel-'+id).classList.add('active');
-  document.querySelector(`[data-tab="${id}"]`).classList.add('active');
-  if(id==='avance') renderAvanceSiembra();
-  if(id==='projection' && map) setTimeout(()=>map.invalidateSize(),100);
-}
-
-/* ============================================================ AVANCE DE SIEMBRA (ex Truth-Gap) ============================================================ */
-const TG_DATES = ['Sep-1','Sep-15','Oct-1','Oct-15','Nov-1','Nov-15','Dec-1','Dec-15','Ene-1','Ene-15','Feb-1','Feb-15','Mar-1'];
-
-function genTruthGapData(cropKey){
-  const base = filteredNoCrop().filter(d=>d.crop===cropKey);
-  const intention = sum(base.map(d=>gv(d,STATE.campaign)));
-  if(intention===0) return null;
-  const rng = seededRandom(cropKey+STATE.campaign);
-  const points = [];
-  for(let i=0;i<TG_DATES.length;i++){
-    const progress = i/(TG_DATES.length-1);
-    const sCurve = 1/(1+Math.exp(-8*(progress-0.4)));
-    const convergence = 0.88 + rng()*0.09;
-    const observed = Math.round(intention * sCurve * convergence);
-    const noise = Math.round((rng()-0.5)*intention*0.015);
-    points.push({ date: TG_DATES[i], intention, observed: Math.max(0, observed + noise) });
-  }
-  return points;
-}
-
-function renderAvanceSiembra(){
-  const cropKey = document.getElementById('tg-crop').value;
-  const tgData = genTruthGapData(cropKey);
-  if(!tgData || tgData.length===0){
-    document.getElementById('tg-chart').innerHTML='<text x="400" y="130" text-anchor="middle" fill="#8fa0b4" font-size="14">Sin datos para este cultivo en el filtro actual.</text>';
-    document.getElementById('tg-stats').innerHTML='';
-    document.getElementById('tg-province-bars').innerHTML='';
-    document.getElementById('tg-insights').innerHTML='';
-    return;
-  }
-
-  const intention = tgData[0].intention;
-  const lastObs = tgData[tgData.length-1].observed;
-  const gapPct = ((intention-lastObs)/intention*100).toFixed(1);
-  const gapAbs = intention - lastObs;
-  const cropLabel = CONFIG.crops[cropKey]?.label || cropKey;
-
-  document.getElementById('tg-stats').innerHTML=`
-    <div class="tg-stat"><div class="stat-label">Intención inicial</div><div class="stat-value">${fmtHa(intention)}</div><div class="stat-sub">${cropLabel} — Inicio campaña ${STATE.campaign}</div></div>
-    <div class="tg-stat" style="border-left-color:var(--c-accent)"><div class="stat-label">Sup. observada (último corte)</div><div class="stat-value">${fmtHa(lastObs)}</div><div class="stat-sub">${TG_DATES[TG_DATES.length-1]} — Daredevil</div></div>
-    <div class="tg-stat" style="border-left-color:var(--c-purple)"><div class="stat-label">Brecha de ejecución</div><div class="stat-value" style="color:var(--c-purple)">${gapPct}%</div><div class="stat-sub">${fmtHa(gapAbs)} pendientes</div></div>
-    <div class="tg-stat" style="border-left-color:var(--c-warning)"><div class="stat-label">Tasa de ejecución</div><div class="stat-value">${(100-gapPct).toFixed(1)}%</div><div class="stat-sub">Intención convertida en siembra real</div></div>
-  `;
-
-  /* SVG Chart */
-  const svg = document.getElementById('tg-chart');
-  const W=800, H=250, PL=60, PR=20, PT=20, PB=40;
-  const cw=W-PL-PR, ch=H-PT-PB;
-  const maxY = intention * 1.08;
-  const n = tgData.length;
-  const x = (i) => PL + (i/(n-1))*cw;
-  const y = (v) => PT + ch - (v/maxY)*ch;
-
-  const intLine = `M${x(0)},${y(intention)} L${x(n-1)},${y(intention)}`;
-  const obsPoints = tgData.map((d,i)=>`${x(i)},${y(d.observed)}`);
-  const obsLine = 'M'+obsPoints.join(' L');
-  const gapArea = `M${obsPoints.join(' L')} L${x(n-1)},${y(intention)} L${x(0)},${y(intention)} Z`;
-
-  const gridLines = [0,0.25,0.5,0.75,1].map(f=>{
-    const val = maxY*f;
-    const yy = y(val);
-    return `<line x1="${PL}" y1="${yy}" x2="${W-PR}" y2="${yy}" stroke="var(--c-border)" stroke-width="0.5"/>
-      <text x="${PL-8}" y="${yy+4}" text-anchor="end" fill="var(--c-text-muted)" font-size="10">${fmt(Math.round(val))}</text>`;
-  }).join('');
-
-  const labels = tgData.map((d,i)=>{
-    if(i%2!==0 && i!==n-1) return '';
-    return `<text x="${x(i)}" y="${H-8}" text-anchor="middle" fill="var(--c-text-muted)" font-size="9">${d.date}</text>`;
-  }).join('');
-
-  const dots = tgData.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.observed)}" r="3.5" fill="var(--c-accent)" stroke="#fff" stroke-width="1.5"><title>${d.date}: ${fmtHa(d.observed)}</title></circle>`).join('');
-
-  svg.innerHTML = `
-    ${gridLines}
-    <path d="${gapArea}" fill="var(--c-purple)" opacity="0.08"/>
-    <line x1="${PL}" y1="${y(intention)}" x2="${W-PR}" y2="${y(intention)}" stroke="var(--c-text-muted)" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5"/>
-    <text x="${W-PR-4}" y="${y(intention)-6}" text-anchor="end" fill="var(--c-text-muted)" font-size="9">Intención: ${fmtHa(intention)}</text>
-    <polyline points="${obsPoints.join(' ')}" fill="none" stroke="var(--c-accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-    ${dots}
-    ${labels}
-    <text x="${PL}" y="${H-8}" text-anchor="start" fill="var(--c-text-muted)" font-size="9" font-weight="600">Quincenal →</text>
-  `;
-
-  /* Province bars */
-  const provData = {};
-  for(const d of filteredNoCrop().filter(d=>d.crop===cropKey)){
-    if(!provData[d.prov]) provData[d.prov]={prov:d.prov,intention:0};
-    provData[d.prov].intention += gv(d,STATE.campaign);
-  }
-  const rng = seededRandom(cropKey+'prov'+STATE.campaign);
-  const provArr = Object.values(provData).map(p=>{
-    const execRate = 0.85 + rng()*0.12;
-    p.observed = Math.round(p.intention * execRate);
-    p.gap = ((p.intention-p.observed)/p.intention*100).toFixed(1);
-    return p;
-  }).sort((a,b)=>b.gap-a.gap).slice(0,10);
-
-  const maxGap = Math.max(...provArr.map(p=>+p.gap),1);
-  document.getElementById('tg-province-bars').innerHTML = provArr.map(p =>
-    `<div class="bar-row"><span class="bar-label">${p.prov}</span><div class="bar-track"><div class="bar-fill" style="width:${+p.gap/maxGap*80}%;background:var(--c-purple);"><span class="bar-fill-inner">-${p.gap}%</span></div></div></div>`
-  ).join('');
-
-  const insights = [
-    {text:`El avance de siembra para ${cropLabel} en la campaña ${STATE.campaign} muestra una brecha del ${gapPct}%: de ${fmtHa(intention)} de intención, se observan ${fmtHa(lastObs)} efectivamente sembrados.`, type:'highlight'},
-    {text:`La tasa de ejecución es ${(100-gapPct).toFixed(1)}%, valor ${+gapPct<8?'alto, indicando buena conversión intención→siembra':'que sugiere revisar factores climáticos o de mercado que frenan la ejecución'}.`, type: +gapPct<8?'success':'warning'},
-    {text:`${provArr[0]?.prov||'—'} presenta la mayor brecha (-${provArr[0]?.gap||0}%), sugiriendo condiciones adversas o cambio de decisión en esa zona.`, type:'warning'},
-    {text:`Daredevil actualiza la superficie observada cada 15 días, permitiendo anticipar desvíos antes del cierre de ventana de siembra.`, type:''},
-  ];
-  document.getElementById('tg-insights').innerHTML = insights.map(i=>`<div class="insight-item ${i.type}"><span class="insight-icon">${{success:'✅',warning:'⚠️',highlight:'🎯','':'📌'}[i.type]}</span><span>${i.text}</span></div>`).join('');
-}
-
-/* ============================================================ RENDER ALL + INIT ============================================================ */
-function renderAll(){renderKPIs();renderInsights();renderBarChart();renderShareChart();renderTemporalChart();renderProvinceChart();renderTable();renderSidebarStats();renderLegend();renderMapCircles();renderAvanceSiembra();}
-document.addEventListener('DOMContentLoaded',()=>{populateFilterOptions();initMap();computeFiltered();renderAll();});
-
 </script>
+
 </body>
 </html>

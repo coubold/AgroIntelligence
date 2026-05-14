@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoldOS · Información Agronómica</title>
+
+  <!-- ================================================================
+       GUÍA DE DEMO — INFO AGRONÓMICA PARA CRÉDITO (3-5 min)
+       ================================================================
+       1. Mostrar pantalla de búsqueda vacía → contexto: "al momento
+          de evaluar una operación crediticia, el analista necesita
+          información agronómica actual y concreta"
+       2. Escribir "Agro" o "20-" → aparecen clientes en dropdown
+       3. Seleccionar "Agropecuaria Los Álamos S.A." → loading → ficha
+       4. Recorrer KPIs de condición actual (sup, rinde, estrés, NDVI)
+       5. Mostrar panel "Qué estamos sensando" → señales del momento
+       6. Recorrer tabla de lotes con semáforos → click en un lote
+       7. En el detalle del lote: evolución temporal, condición, alerta
+       8. Mostrar tab "Alertas activas" → ver priorizadas
+       9. Cambiar fecha de corte → ver cómo cambia la lectura
+      10. Abrir modal metodológico → transparencia de datos
+      11. Mostrar el resumen ejecutivo automático → listo para decisión
+      12. Cambiar a otro cliente con peor perfil → contrastar
+       ================================================================ -->
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <style>
+  /* ==========================================================================
+     TOKENS
+     ========================================================================== */
+  :root {
+    /* Brand greens */
+    --g900: #1a3a2a;  --g800: #1f4d35;  --g700: #266040;
+    --g600: #2e7d4f;  --g500: #3a9d63;  --g400: #5cb87a;
+    --g100: #dff0e4;  --g50:  #f0f8f2;
+
+    /* Neutrals */
+    --n900: #1a1a1a;  --n800: #2d2d2d;  --n700: #444;
+    --n600: #5a5a5a;  --n500: #777;     --n400: #999;
+    --n300: #b3b3b3;  --n200: #d4d4d4;  --n150: #e0e0e0;
+    --n100: #eee;     --n50:  #f7f7f7;  --white: #fff;
+
+    /* Signals */
+    --sig-up: #2e7d32;       --sig-warn: #f9a825;
+    --sig-alert: #ef6c00;    --sig-down: #c62828;
+    --sig-mute: #9e9e9e;
+    --sig-up-bg: #e8f5e9;    --sig-warn-bg: #fff8e1;
+    --sig-alert-bg: #fff3e0; --sig-down-bg: #ffebee;
+    --sig-mute-bg: #f5f5f5;
+    --accent: #1565c0;       --accent-lt: #e3f2fd;
+
+    /* Typography */
+    --ff: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    --mono: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+
+    /* Spacing */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s8: 48px;
+
+    /* Radii & shadows */
+    --r1: 4px; --r2: 6px; --r3: 8px; --r4: 12px;
+    --sh1: 0 1px 3px rgba(0,0,0,.08);
+    --sh2: 0 2px 8px rgba(0,0,0,.10);
+    --sh3: 0 4px 16px rgba(0,0,0,.12);
+    --tr: 200ms ease;
+  }
+
+  /* ==========================================================================
+     BASE
+     ========================================================================== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 14px; }
+  body {
+    font-family: var(--ff);
+    color: var(--n800);
+    background: var(--n50);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ==========================================================================
+     LAYOUT
+     ========================================================================== */
+  .hdr {
+    background: var(--g900);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--s5);
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .hdr__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .hdr__brand svg { width: 28px; height: 28px; }
+  .hdr__nav {
+    display: flex;
+    gap: var(--s5);
+    align-items: center;
+  }
+  .hdr__nav a, .hdr__nav span {
+    color: rgba(255,255,255,.5);
+    text-decoration: none;
+    font-size: .85rem;
+    transition: color var(--tr);
+    cursor: pointer;
+  }
+  .hdr__nav a:hover, .hdr__nav span:hover { color: var(--white); }
+  .hdr__nav .is-active { color: var(--white) !important; font-weight: 600; }
+  .hdr__meta {
+    font-size: .78rem;
+    color: rgba(255,255,255,.45);
+    display: flex;
+    gap: var(--s4);
+    align-items: center;
+  }
+
+  .crumb {
+    padding: var(--s2) var(--s5);
+    font-size: .8rem;
+    color: var(--n500);
+    background: var(--white);
+    border-bottom: 1px solid var(--n150);
+  }
+  .crumb a { color: var(--g700); text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+
+  .main { padding: var(--s5); max-width: 1440px; margin: 0 auto; }
+
+  .ftr {
+    text-align: center;
+    padding: var(--s5);
+    font-size: .75rem;
+    color: var(--n400);
+    border-top: 1px solid var(--n150);
+    margin-top: var(--s6);
+  }
+
+  .layout-2col {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: var(--s5);
+    align-items: start;
+  }
+
+  .filters-row {
+    display: flex;
+    gap: var(--s4);
+    align-items: end;
+    flex-wrap: wrap;
+  }
+
+  /* ==========================================================================
+     COMPONENTS — Cards
+     ========================================================================== */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    box-shadow: var(--sh1);
+    padding: var(--s5);
+    margin-bottom: var(--s4);
+    transition: box-shadow var(--tr);
+  }
+  .card:hover { box-shadow: var(--sh2); }
+  .card__title {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--n800);
+    margin-bottom: var(--s4);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+
+  /* ==========================================================================
+     COMPONENTS — KPIs
+     ========================================================================== */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: var(--s4);
+    margin-bottom: var(--s5);
+  }
+  .kpi {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s4) var(--s5);
+    box-shadow: var(--sh1);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--g600);
+  }
+  .kpi--warn::before  { background: var(--sig-warn); }
+  .kpi--alert::before { background: var(--sig-alert); }
+  .kpi--down::before  { background: var(--sig-down); }
+  .kpi--accent::before { background: var(--accent); }
+  .kpi__label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--n500);
+    margin-bottom: var(--s1);
+  }
+  .kpi__value {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--n900);
+    line-height: 1.2;
+  }
+  .kpi__sub { font-size: .78rem; color: var(--n400); margin-top: var(--s1); }
+  .kpi__delta { font-size: .8rem; font-weight: 600; margin-top: var(--s1); }
+  .kpi__delta--up   { color: var(--sig-up); }
+  .kpi__delta--down { color: var(--sig-down); }
+
+  /* ==========================================================================
+     COMPONENTS — Tabs
+     ========================================================================== */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--n150);
+    margin-bottom: var(--s5);
+  }
+  .tab-btn {
+    padding: var(--s2) var(--s5);
+    font-size: .85rem;
+    font-weight: 500;
+    color: var(--n500);
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--tr);
+    background: none;
+    font-family: var(--ff);
+  }
+  .tab-btn:hover { color: var(--g700); }
+  .tab-btn.is-active {
+    color: var(--g800);
+    border-bottom-color: var(--g700);
+    font-weight: 600;
+  }
+  .tab-panel        { display: none; }
+  .tab-panel.is-active { display: block; }
+
+  /* ==========================================================================
+     COMPONENTS — Tables
+     ========================================================================== */
+  .tbl { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .tbl thead th {
+    background: var(--n50);
+    text-align: left;
+    padding: var(--s2) var(--s4);
+    font-weight: 600;
+    color: var(--n700);
+    border-bottom: 2px solid var(--n200);
+    font-size: .76rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .tbl tbody tr {
+    border-bottom: 1px solid var(--n100);
+    transition: background var(--tr);
+    cursor: pointer;
+  }
+  .tbl tbody tr:hover { background: var(--g50); }
+  .tbl tbody td { padding: var(--s2) var(--s4); vertical-align: middle; }
+  .tbl tfoot td {
+    padding: var(--s2) var(--s4);
+    font-weight: 700;
+    border-top: 2px solid var(--n200);
+  }
+
+  /* ==========================================================================
+     COMPONENTS — Badges, semáforos, micro-elements
+     ========================================================================== */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .73rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge--up    { background: var(--sig-up-bg);    color: var(--sig-up); }
+  .badge--warn  { background: var(--sig-warn-bg);  color: #f57f17; }
+  .badge--alert { background: var(--sig-alert-bg); color: var(--sig-alert); }
+  .badge--down  { background: var(--sig-down-bg);  color: var(--sig-down); }
+  .badge--mute  { background: var(--sig-mute-bg);  color: var(--n600); }
+  .badge--accent { background: var(--accent-lt);   color: var(--accent); }
+
+  .crop-cell { display: flex; align-items: center; gap: var(--s2); }
+  .crop-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--mono);
+    font-size: .82rem;
+  }
+
+  .var       { font-size: .78rem; font-weight: 600; }
+  .var--up   { color: var(--sig-up); }
+  .var--down { color: var(--sig-down); }
+
+  .sem { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; }
+  .sem__dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.8), 0 0 0 3px rgba(0,0,0,.08);
+  }
+  .sem__dot--green  { background: var(--sig-up); }
+  .sem__dot--yellow { background: var(--sig-warn); }
+  .sem__dot--orange { background: var(--sig-alert); }
+  .sem__dot--red    { background: var(--sig-down); }
+  .sem__dot--grey   { background: var(--sig-mute); }
+
+  .sem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+  .sem-card {
+    padding: var(--s3) var(--s4);
+    border: 1px solid var(--n150);
+    border-radius: var(--r2);
+    background: var(--white);
+  }
+  .sem-card__label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--n500); margin-bottom: var(--s1); }
+  .sem-card__value { display: flex; align-items: center; gap: 6px; font-size: .88rem; font-weight: 600; }
+
+  /* ==========================================================================
+     COMPONENTS — Forms & Search
+     ========================================================================== */
+  .field { margin-bottom: var(--s4); }
+  .field__label {
+    display: block;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--n700);
+    margin-bottom: var(--s1);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .field__select, .field__input {
+    width: 100%;
+    padding: var(--s2) var(--s4);
+    border: 1px solid var(--n200);
+    border-radius: var(--r2);
+    font-size: .9rem;
+    font-family: var(--ff);
+    color: var(--n800);
+    background: var(--white);
+    transition: border-color var(--tr), box-shadow var(--tr);
+  }
+  .field__select:focus, .field__input:focus {
+    outline: none;
+    border-color: var(--g600);
+    box-shadow: 0 0 0 3px rgba(46,125,79,.12);
+  }
+
+  .search-wrap { position: relative; }
+  .search-wrap .field__input { padding-left: 36px; }
+  .search-wrap__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--n400);
+    pointer-events: none;
+  }
+  .search-dd {
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: var(--white);
+    border: 1px solid var(--n200);
+    border-top: none;
+    border-radius: 0 0 var(--r2) var(--r2);
+    box-shadow: var(--sh2);
+    z-index: 50;
+    max-height: 280px;
+    overflow-y: auto;
+    display: none;
+  }
+  .search-dd.is-open { display: block; }
+  .search-dd__item {
+    padding: var(--s2) var(--s4);
+    cursor: pointer;
+    font-size: .85rem;
+    border-bottom: 1px solid var(--n100);
+    transition: background var(--tr);
+  }
+  .search-dd__item:hover { background: var(--g50); }
+  .search-dd__item:last-child { border-bottom: none; }
+  .search-dd__name { font-weight: 600; color: var(--n800); }
+  .search-dd__meta { font-size: .75rem; color: var(--n500); margin-top: 2px; }
+
+  /* ==========================================================================
+     COMPONENTS — Buttons
+     ========================================================================== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s2) var(--s5);
+    border-radius: var(--r2);
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: var(--ff);
+    cursor: pointer;
+    border: none;
+    transition: all var(--tr);
+  }
+  .btn--pri { background: var(--g700); color: var(--white); }
+  .btn--pri:hover { background: var(--g800); box-shadow: var(--sh2); }
+  .btn--sec { background: var(--white); color: var(--g700); border: 1px solid var(--g700); }
+  .btn--sec:hover { background: var(--g50); }
+  .btn--sm { padding: var(--s1) var(--s4); font-size: .78rem; }
+
+  /* ==========================================================================
+     COMPONENTS — Loading & Empty states
+     ========================================================================== */
+  .loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s8);
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--n200);
+    border-top-color: var(--g700);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty {
+    text-align: center;
+    padding: var(--s8) var(--s5);
+    color: var(--n400);
+  }
+  .empty__icon { font-size: 2.5rem; margin-bottom: var(--s4); opacity: .35; }
+  .empty__title { font-size: 1rem; font-weight: 600; color: var(--n600); margin-bottom: var(--s2); }
+  .empty__text { font-size: .85rem; max-width: 460px; margin: 0 auto; line-height: 1.6; }
+
+  /* ==========================================================================
+     COMPONENTS — Insights panel
+     ========================================================================== */
+  .insights {
+    background: var(--g50);
+    border-left: 4px solid var(--g600);
+    border-radius: var(--r2);
+    padding: var(--s4) var(--s5);
+    margin: var(--s4) 0;
+  }
+  .insights__hd {
+    font-size: .76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--g800);
+    margin-bottom: var(--s2);
+  }
+  .insights__item {
+    font-size: .85rem;
+    color: var(--n700);
+    padding: var(--s1) 0 var(--s1) var(--s4);
+    position: relative;
+    line-height: 1.5;
+  }
+  .insights__item::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--g600);
+    font-weight: bold;
+  }
+
+  /* ==========================================================================
+     COMPONENTS — Alert items
+     ========================================================================== */
+  .alert-item {
+    display: flex;
+    gap: var(--s4);
+    padding: var(--s4);
+    border: 1px solid var(--n150);
+    border-radius: var(--r2);
+    margin-bottom: var(--s3);
+    transition: all var(--tr);
+    align-items: flex-start;
+    cursor: pointer;
+  }
+  .alert-item:hover { box-shadow: var(--sh2); border-color: var(--n200); }
+  .alert-item--red    { border-left: 4px solid var(--sig-down); }
+  .alert-item--orange { border-left: 4px solid var(--sig-alert); }
+  .alert-item--yellow { border-left: 4px solid var(--sig-warn); }
+  .alert-item__icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .85rem;
+    flex-shrink: 0;
+  }
+  .alert-item--red .alert-item__icon    { background: var(--sig-down-bg);  color: var(--sig-down); }
+  .alert-item--orange .alert-item__icon { background: var(--sig-alert-bg); color: var(--sig-alert); }
+  .alert-item--yellow .alert-item__icon { background: var(--sig-warn-bg);  color: #f57f17; }
+  .alert-item__body  { flex: 1; }
+  .alert-item__title { font-weight: 600; font-size: .88rem; color: var(--n800); margin-bottom: 2px; }
+  .alert-item__text  { font-size: .8rem; color: var(--n500); line-height: 1.5; }
+  .alert-item__badge { font-size: .72rem; margin-top: var(--s1); }
+
+  /* ==========================================================================
+     COMPONENTS — Sensing panel
+     ========================================================================== */
+  .sensing {
+    background: linear-gradient(135deg, var(--g50) 0%, #f5f9f6 100%);
+    border: 1px solid var(--g100);
+    border-radius: var(--r3);
+    padding: var(--s5);
+  }
+  .sensing__hd {
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--g800);
+    margin-bottom: var(--s4);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+  .sensing__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s3) var(--s5);
+    font-size: .82rem;
+  }
+  .sensing__item { display: flex; flex-direction: column; gap: 2px; }
+  .sensing__item-label { color: var(--n500); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+  .sensing__item-value { font-weight: 600; color: var(--n800); }
+
+  /* ==========================================================================
+     COMPONENTS — Client header
+     ========================================================================== */
+  .client-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--s5);
+    flex-wrap: wrap;
+    margin-bottom: var(--s4);
+  }
+  .client-hd__avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--g100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--g700);
+    flex-shrink: 0;
+  }
+  .client-hd__info { flex: 1; min-width: 200px; }
+  .client-hd__name { font-size: 1.15rem; font-weight: 700; color: var(--n900); }
+  .client-hd__meta { font-size: .8rem; color: var(--n500); display: flex; gap: var(--s4); flex-wrap: wrap; margin-top: 2px; }
+
+  /* ==========================================================================
+     COMPONENTS — Executive summary
+     ========================================================================== */
+  .exec-summary {
+    background: linear-gradient(135deg, var(--g900) 0%, #1a4a34 100%);
+    color: var(--white);
+    border-radius: var(--r3);
+    padding: var(--s5);
+    margin-bottom: var(--s4);
+  }
+  .exec-summary__hd {
+    font-size: .76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(255,255,255,.6);
+    margin-bottom: var(--s3);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+  .exec-summary__text {
+    font-size: .92rem;
+    line-height: 1.65;
+    color: rgba(255,255,255,.92);
+  }
+  .exec-summary__reco {
+    margin-top: var(--s4);
+    padding: var(--s3) var(--s4);
+    background: rgba(255,255,255,.1);
+    border-radius: var(--r2);
+    font-size: .85rem;
+    color: rgba(255,255,255,.85);
+    border-left: 3px solid var(--g400);
+  }
+  .exec-summary__reco strong { color: var(--white); }
+
+  /* ==========================================================================
+     COMPONENTS — Modal
+     ========================================================================== */
+  .modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-bg.is-open { display: flex; }
+  .modal {
+    background: var(--white);
+    border-radius: var(--r4);
+    padding: var(--s6);
+    max-width: 680px;
+    width: 92%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: var(--sh3);
+  }
+  .modal__hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s5);
+  }
+  .modal__title { font-size: 1.1rem; font-weight: 700; color: var(--n900); }
+  .modal__close {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--n400);
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal__close:hover { color: var(--n700); }
+  .method-block {
+    margin-bottom: var(--s4);
+    padding: var(--s4);
+    background: var(--g50);
+    border-radius: var(--r2);
+    font-size: .85rem;
+  }
+  .method-block strong {
+    color: var(--g800);
+    font-size: .82rem;
+    display: block;
+    margin-bottom: var(--s1);
+  }
+  .method-block p { color: var(--n600); line-height: 1.55; }
+
+  /* ==========================================================================
+     COMPONENTS — Lot detail panel
+     ========================================================================== */
+  .lot-detail {
+    background: var(--n50);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s5);
+    margin-top: var(--s4);
+    display: none;
+  }
+  .lot-detail.is-open { display: block; }
+  .lot-detail__hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s4);
+  }
+  .lot-detail__hd-title { font-size: 1rem; font-weight: 700; color: var(--n900); }
+  .lot-detail__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--s4);
+    margin-bottom: var(--s4);
+  }
+  .lot-detail__metric {
+    padding: var(--s3);
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r2);
+  }
+  .lot-detail__metric-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--n500); margin-bottom: 2px; }
+  .lot-detail__metric-value { font-size: 1.1rem; font-weight: 700; color: var(--n900); }
+  .lot-detail__metric-sub   { font-size: .75rem; color: var(--n400); margin-top: 2px; }
+
+  .timeline-chart { width: 100%; height: 120px; margin-top: var(--s3); }
+  .timeline-chart svg { width: 100%; height: 100%; }
+
+  /* ==========================================================================
+     COMPONENTS — Toast
+     ========================================================================== */
+  .toast {
+    position: fixed;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--g800);
+    color: var(--white);
+    padding: var(--s3) var(--s5);
+    border-radius: var(--r3);
+    font-size: .85rem;
+    font-weight: 600;
+    box-shadow: var(--sh3);
+    z-index: 300;
+    transition: bottom .4s ease;
+  }
+  .toast.is-visible { bottom: 24px; }
+
+  /* ==========================================================================
+     UTILITIES — Tooltip
+     ========================================================================== */
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--n800);
+    color: var(--white);
+    padding: 4px 10px;
+    border-radius: var(--r1);
+    font-size: .72rem;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  /* ==========================================================================
+     RESPONSIVE
+     ========================================================================== */
+  @media (max-width: 1100px) { .layout-2col { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) {
+    .hdr__nav { display: none; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .layout-2col { grid-template-columns: 1fr; }
+    .lot-detail__grid { grid-template-columns: 1fr 1fr; }
+    .sem-grid { grid-template-columns: 1fr; }
+    .sensing__grid { grid-template-columns: 1fr; }
+    .geomap-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ==========================================================================
+     COMPONENT — GeoMap
+     ========================================================================== */
+  .geomap-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: var(--s4);
+    margin-top: var(--s4);
+  }
+  @media (max-width: 1100px) {
+    .geomap-grid { grid-template-columns: 1fr; }
+  }
+  .geomap__map-wrap {
+    position: relative;
+    min-height: 440px;
+    border-radius: var(--r3);
+    overflow: hidden;
+    border: 1px solid var(--n150);
+  }
+  .geomap__hint {
+    position: absolute;
+    top: 10px; right: 10px;
+    z-index: 500;
+    pointer-events: none;
+    background: rgba(26,26,26,.65);
+    backdrop-filter: blur(4px);
+    color: rgba(255,255,255,.9);
+    font-size: .72rem;
+    padding: 4px 10px;
+    border-radius: var(--r2);
+  }
+  .geomap__panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s4);
+  }
+  .geomap__pin-card {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s4) var(--s5);
+    box-shadow: var(--sh1);
+  }
+  .geomap__pin-card h4 {
+    font-size: .76rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--n500);
+    font-weight: 600;
+    margin-bottom: var(--s3);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+  .geomap__pin-empty {
+    font-size: .82rem;
+    color: var(--n400);
+    line-height: 1.55;
+  }
+  .geomap__pin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s2) var(--s4);
+    margin-bottom: var(--s3);
+  }
+  .geomap__pin-field label {
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--n400);
+    display: block;
+    margin-bottom: 2px;
+  }
+  .geomap__pin-field span {
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--n800);
+  }
+  .geomap__pin-field span.mono {
+    font-family: var(--mono);
+    font-size: .82rem;
+  }
+  .geomap__pin-actions {
+    display: flex;
+    gap: var(--s2);
+  }
+  .geomap__legend {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s4) var(--s5);
+    box-shadow: var(--sh1);
+  }
+  .geomap__legend h4 {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--n500);
+    font-weight: 600;
+    margin-bottom: var(--s2);
+  }
+  .geomap__legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s4);
+  }
+  .geomap__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .8rem;
+    color: var(--n700);
+  }
+  .geomap__legend-swatch {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .geomap__tile-btns {
+    display: flex;
+    gap: var(--s1);
+    margin-top: var(--s3);
+  }
+  .geomap__tile-btn {
+    flex: 1;
+    padding: 4px 0;
+    font-size: .72rem;
+    font-family: var(--ff);
+    font-weight: 500;
+    border: 1px solid var(--n200);
+    border-radius: 20px;
+    background: var(--white);
+    color: var(--n600);
+    cursor: pointer;
+    transition: all var(--tr);
+  }
+  .geomap__tile-btn:hover { border-color: var(--g600); color: var(--g700); }
+  .geomap__tile-btn.is-active {
+    background: var(--g700);
+    color: var(--white);
+    border-color: var(--g700);
+  }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="assets/bold-chrome.css">
+</head>
+<body>
+
+  <!-- ================================================================
+       HEADER
+       ================================================================ -->
+  <header class="bold-hdr">
+    <a href="index.html" class="bold-hdr__brand" aria-label="Ir al inicio">
+      <span class="bold-hdr__brand-mark">BOLD</span>
+      <span class="bold-hdr__brand-sep"></span>
+      <span class="bold-hdr__product">
+        <span class="bold-hdr__product-name">Información Agronómica</span>
+        <span class="bold-hdr__product-tag">Inteligencia para decisión de crédito</span>
+      </span>
+    </a>
+    <nav class="bold-hdr__nav">
+      <a href="oportunidad.html">Oportunidad</a>
+      <a href="precalificacion.html">Precalificación</a>
+      <a href="info-agronomica.html" class="is-active">Info Agronómica</a>
+      <a href="cartera.html">Cartera</a>
+    </nav>
+    <div class="bold-hdr__meta">
+      <span class="bold-hdr__meta-pill">Campaña 2025/26</span>
+      <span data-bind="date" id="headerDate"></span>
+    </div>
+    <div class="bold-hdr__pulse"></div>
+  </header>
+
+  <!-- Breadcrumb -->
+  <div class="crumb" id="crumb">
+    <a href="#" onclick="UI.reset(); return false;">Inicio</a>
+    <span style="margin:0 4px">›</span>
+    <span id="crumbModule">Información Agronómica para Decisión de Crédito</span>
+    <span id="crumbSep" style="display:none;margin:0 4px">›</span>
+    <span id="crumbDetail" style="display:none"></span>
+  </div>
+
+  <!-- ================================================================
+       MAIN CONTENT
+       ================================================================ -->
+  <main class="main">
+
+    <!-- SEARCH BAR -->
+    <section class="card" id="searchCard">
+      <div style="margin-bottom:var(--s4)">
+        <h2 style="font-size:1.05rem;font-weight:700;color:var(--n900)">Información Agronómica para Decisión de Crédito</h2>
+        <p style="color:var(--n500);font-size:.82rem;margin-top:4px">Señales agronómicas del momento para complementar la evaluación crediticia de un cliente o lote.</p>
+      </div>
+      <div class="filters-row">
+        <div class="field" style="flex:1;min-width:300px;margin-bottom:0">
+          <label class="field__label" for="searchInput">Cliente / CUIT / Establecimiento / Lote</label>
+          <div class="search-wrap">
+            <svg class="search-wrap__icon" width="16" height="16" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            <input class="field__input" type="text" id="searchInput" placeholder="Buscar por razón social, CUIT o nombre de establecimiento..." autocomplete="off">
+            <div class="search-dd" id="searchDD"></div>
+          </div>
+        </div>
+        <div class="field" style="min-width:150px;margin-bottom:0">
+          <label class="field__label" for="fCorte">Fecha de Corte</label>
+          <select class="field__select" id="fCorte">
+            <option value="2026-03-12">12/03/2026 (Último)</option>
+            <option value="2026-02-15">15/02/2026</option>
+            <option value="2026-01-20">20/01/2026</option>
+            <option value="2025-12-10">10/12/2025</option>
+          </select>
+        </div>
+        <div class="field" style="min-width:130px;margin-bottom:0">
+          <label class="field__label" for="fCrop">Cultivo</label>
+          <select class="field__select" id="fCrop">
+            <option value="all">Todos</option>
+            <option value="soja">Soja</option>
+            <option value="maiz">Maíz</option>
+            <option value="trigo">Trigo</option>
+            <option value="girasol">Girasol</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- GEOMAP -->
+    <section class="card" id="geomapCard">
+      <div class="card__title">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1C5.24 1 3 3.24 3 6c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 8 4a1.5 1.5 0 0 1 0 3.5z" fill="var(--g700)"/></svg>
+        Mapa de Georeferencia — Zona Núcleo
+      </div>
+      <div class="geomap-grid">
+        <div class="geomap__map-wrap">
+          <div class="geomap__hint">Click para marcar ubicación</div>
+          <div id="geomap" style="height:100%;min-height:440px"></div>
+        </div>
+        <div class="geomap__panel">
+          <!-- Pin info -->
+          <div class="geomap__pin-card">
+            <h4>
+              <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 0C4.24 0 2 2.24 2 5c0 3.75 5 9 5 9s5-5.25 5-9C12 2.24 9.76 0 7 0z" fill="var(--sig-down)" opacity=".6"/><circle cx="7" cy="4.8" r="1.8" fill="white"/></svg>
+              Punto de referencia
+            </h4>
+            <div id="geoPinContent">
+              <div class="geomap__pin-empty">Hacé click en el mapa para marcar un punto de referencia. Se mostrarán las coordenadas y la provincia/departamento más cercano.</div>
+            </div>
+          </div>
+          <!-- Legend -->
+          <div class="geomap__legend">
+            <h4>Provincias en cobertura</h4>
+            <div class="geomap__legend-items" id="geoLegend"></div>
+            <div class="geomap__tile-btns" id="geoTileBtns">
+              <button class="geomap__tile-btn is-active" data-tile="terrain">Terreno</button>
+              <button class="geomap__tile-btn" data-tile="satellite">Satélite</button>
+              <button class="geomap__tile-btn" data-tile="osm">Calles</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EMPTY STATE -->
+    <section id="stateEmpty" class="card empty">
+      <div class="empty__icon">⊕</div>
+      <div class="empty__title">Busque un cliente o lote para evaluar</div>
+      <div class="empty__text">Ingrese una razón social, CUIT o identificador de establecimiento para visualizar la condición agronómica actual con señales relevantes para la decisión crediticia.</div>
+    </section>
+
+    <!-- LOADING STATE -->
+    <section id="stateLoading" class="card" style="display:none">
+      <div class="loader">
+        <div style="text-align:center">
+          <div class="spinner"></div>
+          <div style="margin-top:12px;font-size:.85rem;color:var(--n500)">Consultando señales agronómicas actuales...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RESULTS ================= -->
+    <div id="stateResults" style="display:none">
+
+      <!-- Client header -->
+      <section class="card" id="clientCard"></section>
+
+      <!-- KPIs -->
+      <div class="kpi-row" id="kpiRow"></div>
+
+      <!-- Executive summary -->
+      <div id="execSummary"></div>
+
+      <!-- Layout: Sensing sidebar + Content -->
+      <div class="layout-2col">
+
+        <!-- LEFT: Sensing + Semáforos -->
+        <div>
+          <!-- Sensing panel -->
+          <div class="sensing" id="sensingPanel"></div>
+
+          <!-- Semáforos -->
+          <div class="card" style="margin-top:var(--s4)">
+            <div class="card__title">
+              <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--g700)" stroke-width="1.5"/><circle cx="8" cy="5" r="1.5" fill="var(--g700)"/><rect x="7" y="7.5" width="2" height="4.5" rx="1" fill="var(--g700)"/></svg>
+              Semáforos de Condición
+            </div>
+            <div class="sem-grid" id="semGrid"></div>
+            <div style="margin-top:var(--s4);text-align:center">
+              <button class="btn btn--sec btn--sm" id="btnMethod">Detalle metodológico</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Content tabs -->
+        <div>
+          <div class="card" style="padding-bottom:var(--s3)">
+            <div class="tabs" id="tabBar">
+              <button class="tab-btn is-active" data-tab="lotes">Condición por Lote</button>
+              <button class="tab-btn" data-tab="alertas">Alertas Activas</button>
+              <button class="tab-btn" data-tab="evolucion">Evolución Reciente</button>
+            </div>
+
+            <!-- TAB: Condition per lot -->
+            <div class="tab-panel is-active" id="p-lotes">
+              <div style="margin-bottom:var(--s4)">
+                <h3 style="font-size:.95rem;font-weight:600;color:var(--n800);margin-bottom:4px">Estado Agronómico por Lote</h3>
+                <p style="font-size:.78rem;color:var(--n400)">Click en un lote para ver detalle de señales y evolución temporal</p>
+              </div>
+              <div id="lotTable"></div>
+              <div class="lot-detail" id="lotDetail"></div>
+            </div>
+
+            <!-- TAB: Active alerts -->
+            <div class="tab-panel" id="p-alertas">
+              <div style="margin-bottom:var(--s4)">
+                <h3 style="font-size:.95rem;font-weight:600;color:var(--n800);margin-bottom:4px">Alertas Activas Priorizadas</h3>
+                <p style="font-size:.78rem;color:var(--n400)">Señales que requieren atención para la evaluación crediticia</p>
+              </div>
+              <div id="alertList"></div>
+            </div>
+
+            <!-- TAB: Recent evolution -->
+            <div class="tab-panel" id="p-evolucion">
+              <div style="margin-bottom:var(--s4)">
+                <h3 style="font-size:.95rem;font-weight:600;color:var(--n800);margin-bottom:4px">Evolución Reciente de Señales</h3>
+                <p style="font-size:.78rem;color:var(--n400)">Tendencia de los últimos 90 días de indicadores clave</p>
+              </div>
+              <div id="evolutionChart"></div>
+            </div>
+          </div>
+
+          <!-- Insights -->
+          <div class="insights" id="insightsBlock" style="display:none">
+            <div class="insights__hd">Observaciones Automáticas para el Analista</div>
+            <div id="insightsList"></div>
+          </div>
+
+          <!-- Actions -->
+          <div class="card" style="display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap">
+            <button class="btn btn--pri" id="btnIncluir">Incluir en evaluación crediticia</button>
+            <button class="btn btn--sec" id="btnExportar">Exportar ficha agronómica</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================================================================
+       MODAL — Methodology
+       ================================================================ -->
+  <div class="modal-bg" id="modalMethod">
+    <div class="modal">
+      <div class="modal__hd">
+        <div class="modal__title">Detalle Metodológico</div>
+        <button class="modal__close" id="btnCloseModal">&times;</button>
+      </div>
+      <p style="margin-bottom:12px;font-size:.9rem;color:var(--n700)">Las señales agronómicas presentadas se construyen integrando múltiples fuentes de información:</p>
+      <div class="method-block"><strong>1. Imágenes satelitales multitemporales</strong><p>Se procesan imágenes Sentinel-2 cada 5 días para calcular índices de vegetación (NDVI, EVI) y detectar cambios en la cobertura y condición de los cultivos a nivel de lote.</p></div>
+      <div class="method-block"><strong>2. Modelización de estrés hídrico</strong><p>Se combina balance hídrico edáfico con datos climáticos interpolados (precipitación, temperatura, evapotranspiración) para estimar el nivel de estrés hídrico actual y proyectado a 15 días.</p></div>
+      <div class="method-block"><strong>3. Benchmark zonal dinámico</strong><p>Se compara el comportamiento de cada lote contra la media y dispersión del departamento, actualizando semanalmente en base a la evolución de cultivos vecinos.</p></div>
+      <div class="method-block"><strong>4. Detección de cultivo y rendimiento estimado</strong><p>Un modelo de clasificación identifica el cultivo presente en cada lote y estima el rendimiento potencial a partir de la curva fenológica observada y el historial productivo de la zona.</p></div>
+      <div style="margin-top:16px;padding:12px;background:var(--n50);border-radius:6px;font-size:.8rem;color:var(--n500)">La información tiene carácter orientativo y no reemplaza la evaluación agronómica de campo. Última actualización de señales: 12/03/2026. Frecuencia de actualización: semanal.</div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Footer -->
+  <footer class="ftr">Agro Intelligence Suite — Información de carácter orientativo. No reemplaza el proceso formal de evaluación crediticia. — Última actualización: <span data-bind="date"></span> — Campaña 2025/26</footer>
+
+
+<!-- ====================================================================
+     JAVASCRIPT — Single-file, offline-ready, clean architecture
+     ==================================================================== -->
+<script>
+(() => {
+'use strict';
+
+/* =======================================================
+   CONFIG / META
+   ======================================================= */
+
+const META = Object.freeze({
+  lastUpdate: '2026-03-12',
+  campaign:   '2025/26',
+  demoMode:   false  // true → auto-loads first client
+});
+
+/* =======================================================
+   DATA MODELS — Crops, Benchmarks, Clients
+   ======================================================= */
+
+const CROPS = Object.freeze({
+  soja:    { label: 'Soja',    color: '#4CAF50', price: 320 },
+  maiz:    { label: 'Maíz',    color: '#FFC107', price: 185 },
+  trigo:   { label: 'Trigo',   color: '#8D6E63', price: 230 },
+  girasol: { label: 'Girasol', color: '#FF9800', price: 410 }
+});
+
+const BENCHMARKS = Object.freeze({
+  'Pergamino':      { soja: 38, maiz:  95, trigo: 42, girasol: 24 },
+  'Marcos Juárez':  { soja: 40, maiz: 100, trigo: 45, girasol: 26 },
+  'General López':  { soja: 37, maiz:  92, trigo: 41, girasol: 23 },
+  'Paraná':         { soja: 32, maiz:  78, trigo: 35, girasol: 19 },
+  'Quemú Quemú':    { soja: 28, maiz:  70, trigo: 30, girasol: 17 },
+  'Unión':          { soja: 35, maiz:  85, trigo: 38, girasol: 21 },
+  'Río Cuarto':     { soja: 30, maiz:  75, trigo: 33, girasol: 18 },
+  'Caseros':        { soja: 36, maiz:  88, trigo: 39, girasol: 22 }
+});
+
+const CLIENTS = Object.freeze([
+  {
+    id: 'CLI-001',
+    name: 'Agropecuaria Los Álamos S.A.',
+    cuit: '20-31456789-4',
+    provincia: 'Buenos Aires',
+    departamento: 'Pergamino',
+    ejecutivo: 'Martínez, Juan P.',
+    initials: 'AL',
+    establishments: [
+      {
+        id: 'EST-001', name: 'La Esperanza', ha: 1200,
+        lots: [
+          { id:'L-001', name:'Lote Norte A',  ha:450, crop:'soja',  yEst:36, yHist:38, ndvi:.72, ndviTrend:'stable', ws:'low',      cond:'good',      wsProj:'low',      alerts:[] },
+          { id:'L-002', name:'Lote Sur B',    ha:400, crop:'maiz',  yEst:88, yHist:95, ndvi:.68, ndviTrend:'down',   ws:'moderate', cond:'fair',      wsProj:'moderate', alerts:['Rinde estimado 7% debajo benchmark zonal'] },
+          { id:'L-003', name:'Lote Este C',   ha:350, crop:'trigo', yEst:40, yHist:42, ndvi:.65, ndviTrend:'stable', ws:'low',      cond:'good',      wsProj:'low',      alerts:[] }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'CLI-002',
+    name: 'Establecimiento Don Julio S.R.L.',
+    cuit: '30-71234567-2',
+    provincia: 'Córdoba',
+    departamento: 'Marcos Juárez',
+    ejecutivo: 'González, Ana R.',
+    initials: 'DJ',
+    establishments: [
+      {
+        id: 'EST-003', name: 'Don Julio Central', ha: 950,
+        lots: [
+          { id:'L-006', name:'Potrero 1',     ha:380, crop:'soja',  yEst:42, yHist:40, ndvi:.78, ndviTrend:'up',     ws:'low',      cond:'excellent', wsProj:'low',      alerts:[] },
+          { id:'L-007', name:'Potrero 2',     ha:320, crop:'maiz',  yEst:102,yHist:100,ndvi:.81, ndviTrend:'up',     ws:'low',      cond:'excellent', wsProj:'low',      alerts:[] },
+          { id:'L-008', name:'Potrero 3',     ha:250, crop:'trigo', yEst:46, yHist:45, ndvi:.70, ndviTrend:'stable', ws:'low',      cond:'good',      wsProj:'low',      alerts:[] }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'CLI-003',
+    name: 'Campos del Sur S.A.',
+    cuit: '30-65432198-5',
+    provincia: 'Santa Fe',
+    departamento: 'General López',
+    ejecutivo: 'Pérez, Carlos M.',
+    initials: 'CS',
+    establishments: [
+      {
+        id: 'EST-004', name: 'Santa Rosa', ha: 1800,
+        lots: [
+          { id:'L-009', name:'Cuadro 1',      ha:500, crop:'soja',  yEst:28, yHist:37, ndvi:.42, ndviTrend:'down',   ws:'high',     cond:'poor',      wsProj:'high',     alerts:['Estrés hídrico severo — rinde estimado cae 24% vs histórico','NDVI en mínimo de los últimos 3 años para este período'] },
+          { id:'L-010', name:'Cuadro 2',      ha:480, crop:'maiz',  yEst:72, yHist:92, ndvi:.48, ndviTrend:'down',   ws:'high',     cond:'poor',      wsProj:'high',     alerts:['Rinde estimado 22% debajo benchmark zonal','Condición vegetativa deteriorada respecto de la media departamental'] },
+          { id:'L-011', name:'Cuadro 3',      ha:420, crop:'trigo', yEst:33, yHist:41, ndvi:.52, ndviTrend:'down',   ws:'moderate', cond:'fair',      wsProj:'moderate', alerts:['Tendencia descendente sostenida en NDVI últimas 4 semanas'] },
+          { id:'L-012', name:'Cuadro 4',      ha:400, crop:'soja',  yEst:30, yHist:37, ndvi:.44, ndviTrend:'down',   ws:'high',     cond:'poor',      wsProj:'high',     alerts:['Estrés hídrico severo — posible pérdida parcial de cultivo'] }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'CLI-004',
+    name: 'Agroservicios Pampeanos S.A.',
+    cuit: '30-67891234-8',
+    provincia: 'La Pampa',
+    departamento: 'Quemú Quemú',
+    ejecutivo: 'López, María E.',
+    initials: 'AP',
+    establishments: [
+      {
+        id: 'EST-007', name: 'La Cautiva', ha: 2200,
+        lots: [
+          { id:'L-017', name:'Parcela Norte', ha:800, crop:'soja',    yEst:22, yHist:27, ndvi:.38, ndviTrend:'down',   ws:'high',     cond:'poor',      wsProj:'high',     alerts:['Estrés hídrico severo sostenido','Rendimiento estimado 21% debajo del benchmark zonal','Divergencia significativa entre condición esperada y señal sensada'] },
+          { id:'L-018', name:'Parcela Sur',   ha:750, crop:'maiz',    yEst:58, yHist:68, ndvi:.44, ndviTrend:'down',   ws:'high',     cond:'fair',      wsProj:'high',     alerts:['Descenso de NDVI acelerado en últimas 3 semanas'] },
+          { id:'L-019', name:'Parcela Este',  ha:650, crop:'girasol', yEst:13, yHist:16, ndvi:.48, ndviTrend:'stable', ws:'moderate', cond:'fair',      wsProj:'moderate', alerts:[] }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'CLI-005',
+    name: 'Cereales Río Cuarto S.A.',
+    cuit: '30-70987654-1',
+    provincia: 'Córdoba',
+    departamento: 'Río Cuarto',
+    ejecutivo: 'Fernández, Diego L.',
+    initials: 'CR',
+    establishments: [
+      {
+        id: 'EST-012', name: 'El Amanecer', ha: 640,
+        lots: [
+          { id:'L-030', name:'Lote A', ha:340, crop:'soja', yEst:32, yHist:30, ndvi:.66, ndviTrend:'up',     ws:'low',      cond:'good', wsProj:'low',      alerts:[] },
+          { id:'L-031', name:'Lote B', ha:300, crop:'maiz', yEst:78, yHist:76, ndvi:.68, ndviTrend:'stable', ws:'low',      cond:'good', wsProj:'low',      alerts:[] }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'CLI-006',
+    name: 'Haciendas Unión Coop. Ltda.',
+    cuit: '30-55678901-3',
+    provincia: 'Córdoba',
+    departamento: 'Unión',
+    ejecutivo: 'González, Ana R.',
+    initials: 'HU',
+    establishments: [
+      {
+        id: 'EST-009', name: 'Campo Unión', ha: 1100,
+        lots: [
+          { id:'L-022', name:'Sector A', ha:400, crop:'soja',   yEst:33, yHist:34, ndvi:.64, ndviTrend:'stable', ws:'low',      cond:'good', wsProj:'low',      alerts:[] },
+          { id:'L-023', name:'Sector B', ha:380, crop:'maiz',   yEst:80, yHist:84, ndvi:.62, ndviTrend:'down',   ws:'moderate', cond:'fair', wsProj:'moderate', alerts:['Leve descenso de NDVI — monitorear'] },
+          { id:'L-024', name:'Sector C', ha:320, crop:'soja',   yEst:31, yHist:34, ndvi:.56, ndviTrend:'down',   ws:'moderate', cond:'fair', wsProj:'moderate', alerts:['Rinde estimado 11% debajo del benchmark zonal'] }
+        ]
+      }
+    ]
+  }
+]);
+
+
+/* =======================================================
+   UTILS / HELPERS
+   ======================================================= */
+
+/** DOM shortcuts */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+/** Formatters — pure, no DOM access */
+const fmt = {
+  n:    (v, d = 0) => new Intl.NumberFormat('es-AR', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v),
+  usd:  (v)        => 'USD ' + fmt.n(v),
+  ha:   (v)        => fmt.n(v) + ' ha',
+  y:    (v)        => fmt.n(v, 1) + ' qq/ha',
+  pct:  (v)        => (v >= 0 ? '+' : '') + fmt.n(v, 1) + '%',
+  date: (s)        => { const [y, m, d] = s.split('-'); return d + '/' + m + '/' + y; }
+};
+
+/** Lookup maps — reusable label/class dictionaries */
+const LABELS = Object.freeze({
+  ws:    { low: 'Bajo', moderate: 'Moderado', high: 'Alto' },
+  cond:  { excellent: 'Excelente', good: 'Buena', fair: 'Regular', poor: 'Deficiente' },
+  trend: { up: '↑ Mejorando', down: '↓ En descenso', stable: '→ Estable' }
+});
+
+const CLASSES = Object.freeze({
+  ws:    { low: 'green', moderate: 'yellow', high: 'red' },
+  cond:  { excellent: 'green', good: 'green', fair: 'yellow', poor: 'red' },
+  trend: { up: 'up', down: 'down', stable: 'mute' }
+});
+
+/** Map semáforo color → badge class */
+function badgeClass(cls) {
+  const map = { green: 'badge--up', yellow: 'badge--warn', orange: 'badge--alert', red: 'badge--down' };
+  return map[cls] || 'badge--mute';
+}
+
+/** Flatten lots from a client, optionally filtered by crop */
+function getAllLots(client, cropFilter) {
+  const lots = client.establishments.flatMap(e => e.lots);
+  return cropFilter && cropFilter !== 'all' ? lots.filter(l => l.crop === cropFilter) : lots;
+}
+
+/** Generate synthetic NDVI history (6 fortnightly readings) */
+function generateNDVIHistory(lot) {
+  const base = lot.ndvi;
+  const trend = lot.ndviTrend;
+  const pts = [];
+  for (let i = 5; i >= 0; i--) {
+    let offset = 0;
+    if (trend === 'up')     offset = -i * 0.025 + (Math.random() * 0.015);
+    if (trend === 'down')   offset =  i * 0.02  + (Math.random() * 0.015);
+    if (trend === 'stable') offset = (Math.random() - 0.5) * 0.03;
+    pts.push(Math.max(0.15, Math.min(0.95, base + offset)));
+  }
+  pts[pts.length - 1] = base;
+  return pts;
+}
+
+/** Shared SVG chart helpers — reusable for lot detail & evolution */
+const SVG_DATES = ['Ene 15', 'Feb 01', 'Feb 15', 'Mar 01', 'Mar 08', 'Mar 12'];
+
+function buildSVGChart(opts) {
+  const { W, H, pad, data, color, showValues, showAreaFill, title } = opts;
+  const pW = W - pad.l - pad.r;
+  const pH = H - pad.t - pad.b;
+  const minV = Math.min(...data) - 0.05;
+  const maxV = Math.max(...data) + 0.05;
+  const range = maxV - minV;
+
+  const points = data.map((v, i) => ({
+    x: pad.l + (i / (data.length - 1)) * pW,
+    y: pad.t + pH - ((v - minV) / range) * pH,
+    v
+  }));
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="max-height:${H}px;width:100%">`;
+
+  // Title
+  if (title) {
+    svg += `<text x="${pad.l}" y="18" fill="#444" font-size="12" font-weight="600" font-family="Segoe UI">${title}</text>`;
+  }
+
+  // Grid lines + Y labels
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + pH * i / 4;
+    const v = maxV - range * i / 4;
+    svg += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#e0e0e0" stroke-width=".5"/>`;
+    svg += `<text x="${pad.l - 4}" y="${y + 3}" text-anchor="end" fill="#999" font-size="${showValues ? '10' : '9'}" font-family="Segoe UI">${v.toFixed(2)}</text>`;
+  }
+
+  // X labels
+  points.forEach((p, i) => {
+    svg += `<text x="${p.x}" y="${H - (showValues ? 8 : 4)}" text-anchor="middle" fill="#999" font-size="${showValues ? '10' : '8'}" font-family="Segoe UI">${SVG_DATES[i]}</text>`;
+  });
+
+  // Area fill
+  if (showAreaFill) {
+    let areaPath = `M${points[0].x},${pad.t + pH}`;
+    points.forEach(p => { areaPath += `L${p.x.toFixed(1)},${p.y.toFixed(1)}`; });
+    areaPath += `L${points[points.length - 1].x},${pad.t + pH}Z`;
+    svg += `<defs><linearGradient id="ndviGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>`;
+    svg += `<path d="${areaPath}" fill="url(#ndviGrad)" opacity=".3"/>`;
+  }
+
+  // Line path
+  let linePath = '';
+  points.forEach((p, i) => { linePath += (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1); });
+  svg += `<path d="${linePath}" fill="none" stroke="${color}" stroke-width="${showValues ? '2.5' : '2'}" stroke-linejoin="round"/>`;
+
+  // Dots (+ optional value labels)
+  points.forEach(p => {
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="${showValues ? '4' : '3.5'}" fill="${color}" stroke="white" stroke-width="${showValues ? '2' : '1.5'}"/>`;
+    if (showValues) {
+      svg += `<text x="${p.x}" y="${p.y - 10}" text-anchor="middle" fill="#2d2d2d" font-size="10" font-weight="600" font-family="Segoe UI">${p.v.toFixed(2)}</text>`;
+    }
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
+
+/* =======================================================
+   DOMAIN LOGIC — Pure analysis functions (no DOM)
+   ======================================================= */
+
+/**
+ * Analyze a client's agronomic condition.
+ * Returns a plain object with all computed metrics, or null if no lots match.
+ */
+function analyzeClient(client, cropFilter) {
+  const lots = getAllLots(client, cropFilter);
+  if (!lots.length) return null;
+
+  const totalHa      = lots.reduce((s, l) => s + l.ha, 0);
+  const avgNDVI      = lots.reduce((s, l) => s + l.ndvi * l.ha, 0) / totalHa;
+  const avgYield     = lots.reduce((s, l) => s + l.yEst * l.ha, 0) / totalHa;
+  const avgYieldHist = lots.reduce((s, l) => s + l.yHist * l.ha, 0) / totalHa;
+
+  // Dominant crop
+  const cropHa = {};
+  lots.forEach(l => { cropHa[l.crop] = (cropHa[l.crop] || 0) + l.ha; });
+  const domCrop = Object.entries(cropHa).sort((a, b) => b[1] - a[1])[0];
+
+  // Alert & stress counts
+  const totalAlerts  = lots.reduce((s, l) => s + l.alerts.length, 0);
+  const stressedLots = lots.filter(l => l.ws === 'high');
+  const poorLots     = lots.filter(l => l.cond === 'poor');
+  const declining    = lots.filter(l => l.ndviTrend === 'down');
+
+  // Benchmark comparison
+  const bm = BENCHMARKS[client.departamento] || {};
+  let bmAbove = 0, bmBelow = 0;
+  lots.forEach(l => { if (bm[l.crop]) l.yEst >= bm[l.crop] ? bmAbove++ : bmBelow++; });
+
+  // Overall condition
+  let overallCond = 'good';
+  if (poorLots.length > lots.length * 0.5 || stressedLots.length > lots.length * 0.5) overallCond = 'poor';
+  else if (poorLots.length > 0 || stressedLots.length > lots.length * 0.3) overallCond = 'fair';
+  else if (lots.every(l => l.cond === 'excellent' || l.cond === 'good')) overallCond = 'excellent';
+
+  // Overall water stress
+  let overallWS = 'low';
+  if (stressedLots.length > lots.length * 0.5) overallWS = 'high';
+  else if (stressedLots.length > 0 || lots.some(l => l.ws === 'moderate')) overallWS = 'moderate';
+
+  // Consistency (yield gap)
+  const yieldGap = (avgYield - avgYieldHist) / avgYieldHist * 100;
+  let consistency = 'green';
+  if (yieldGap < -15) consistency = 'red';
+  else if (yieldGap < -5) consistency = 'yellow';
+
+  // Early warning
+  let earlyWarning = 'green';
+  if (declining.length > lots.length * 0.6) earlyWarning = 'red';
+  else if (declining.length > lots.length * 0.3) earlyWarning = 'yellow';
+
+  // Estimated production value
+  const totalVal = lots.reduce((s, l) => s + l.ha * l.yEst * (CROPS[l.crop]?.price || 300) / 10, 0);
+
+  return {
+    lots, totalHa, avgNDVI, avgYield, avgYieldHist, domCrop,
+    totalAlerts, stressedLots, poorLots,
+    bmAbove, bmBelow, bm,
+    overallCond, overallWS, consistency, earlyWarning, yieldGap,
+    totalVal, cropHa, declining
+  };
+}
+
+/** Generate analyst insights — returns an array of strings */
+function generateInsights(client, analysis) {
+  const a = analysis;
+  const ins = [];
+
+  if (a.yieldGap < -10)
+    ins.push(`El rinde estimado actual se ubica ${Math.abs(a.yieldGap).toFixed(1)}% por debajo del histórico, lo que impacta directamente en la capacidad productiva del cliente.`);
+  else if (a.yieldGap > 5)
+    ins.push(`El rinde estimado supera en ${a.yieldGap.toFixed(1)}% al historial productivo, reforzando la lectura positiva del caso.`);
+
+  if (a.stressedLots.length > 0) {
+    const pct = Math.round(a.stressedLots.length / a.lots.length * 100);
+    ins.push(`El ${pct}% de los lotes presenta estrés hídrico alto con impacto potencial sobre el rinde esperado en el ciclo actual.`);
+  }
+
+  if (a.bmAbove > a.bmBelow)
+    ins.push('La señal actual se mantiene dentro o por encima del rango previsto para la zona en la mayoría de los lotes.');
+  else if (a.bmBelow > a.bmAbove)
+    ins.push('Se observa divergencia negativa entre la condición actual y el benchmark zonal, lo que requiere seguimiento.');
+
+  if (a.declining.length > a.lots.length * 0.5)
+    ins.push('La tendencia descendente del índice de vegetación en más de la mitad de los lotes constituye una alerta temprana relevante.');
+
+  if (a.overallCond === 'poor')
+    ins.push('La información agronómica actual debilita la lectura crediticia del caso y sugiere una revisión de la exposición.');
+  else if (a.overallCond === 'excellent' || a.overallCond === 'good')
+    ins.push('La información agronómica actual refuerza la lectura crediticia del caso con señales consistentes.');
+
+  if (!ins.length)
+    ins.push('Las señales agronómicas se mantienen dentro de los parámetros esperados para el período y la zona.');
+
+  return ins;
+}
+
+/** Generate executive summary text — returns { summary, reco } */
+function generateExecSummary(client, analysis) {
+  const a = analysis;
+  const dc = CROPS[a.domCrop[0]]?.label || a.domCrop[0];
+  let summary = `${client.name} opera ${fmt.n(a.totalHa)} ha en ${client.departamento}, ${client.provincia}, con ${dc} como cultivo principal (${Math.round(a.domCrop[1] / a.totalHa * 100)}% de la superficie). `;
+
+  if (a.overallCond === 'poor') {
+    summary += `Al corte actual, la condición agronómica general es deficiente. Se registra estrés hídrico alto en ${a.stressedLots.length} de ${a.lots.length} lotes y el rendimiento estimado promedio se ubica ${Math.abs(a.yieldGap).toFixed(1)}% por debajo del histórico. Se identifican ${a.totalAlerts} alertas activas que requieren atención.`;
+  } else if (a.overallCond === 'fair') {
+    summary += `La condición agronómica actual presenta señales mixtas: algunos lotes mantienen buen desempeño mientras otros muestran deterioro parcial. El rendimiento promedio estimado ${a.yieldGap >= 0 ? 'se mantiene alineado con' : 'muestra una brecha de ' + Math.abs(a.yieldGap).toFixed(1) + '% respecto de'} el historial productivo.`;
+  } else {
+    summary += `La condición agronómica es ${LABELS.cond[a.overallCond].toLowerCase()} con señales estables en la mayoría de los lotes. El rendimiento estimado ${a.yieldGap >= 0 ? 'supera' : 'se mantiene cercano a'} el promedio histórico y el NDVI promedio es ${a.avgNDVI.toFixed(2)}.`;
+  }
+
+  let reco = '';
+  if (a.overallCond === 'poor')
+    reco = '<strong>Recomendación operativa:</strong> Se sugiere incorporar estas señales al análisis de riesgo y considerar una revisión de la exposición crediticia. Monitoreo intensificado recomendado.';
+  else if (a.overallCond === 'fair')
+    reco = '<strong>Recomendación operativa:</strong> Mantener monitoreo activo sobre los lotes con señal de alerta. La información agronómica no modifica sustancialmente la lectura crediticia vigente pero requiere seguimiento.';
+  else
+    reco = '<strong>Recomendación operativa:</strong> La información agronómica actual acompaña la evaluación crediticia de forma favorable. Continuar con monitoreo estándar.';
+
+  return { summary, reco };
+}
+
+
+/* =======================================================
+   RENDER FUNCTIONS — Each owns a specific UI region
+   ======================================================= */
+
+const Render = {
+
+  clientHeader(client) {
+    $('#clientCard').innerHTML = `
+      <div class="client-hd">
+        <div class="client-hd__avatar">${client.initials}</div>
+        <div class="client-hd__info">
+          <div class="client-hd__name">${client.name}</div>
+          <div class="client-hd__meta">
+            <span>CUIT: ${client.cuit}</span>
+            <span>${client.departamento}, ${client.provincia}</span>
+            <span>Ejecutivo: ${client.ejecutivo}</span>
+            <span>Campaña ${META.campaign}</span>
+          </div>
+        </div>
+        <span class="badge badge--accent" style="font-size:.78rem">Corte: ${fmt.date($('#fCorte').value)}</span>
+      </div>`;
+  },
+
+  kpis(a) {
+    const condMod = (a.overallCond === 'poor') ? ' kpi--down' : (a.overallCond === 'fair') ? ' kpi--warn' : '';
+    const wsMod   = (a.overallWS === 'high') ? ' kpi--down' : (a.overallWS === 'moderate') ? ' kpi--warn' : '';
+    const alertMod = a.totalAlerts > 3 ? ' kpi--down' : a.totalAlerts > 0 ? ' kpi--alert' : '';
+
+    $('#kpiRow').innerHTML = `
+      <div class="kpi">
+        <div class="kpi__label">Superficie Activa</div>
+        <div class="kpi__value">${fmt.ha(a.totalHa)}</div>
+        <div class="kpi__sub">${a.lots.length} lotes en ${new Set(a.lots.map(l => l.crop)).size} cultivos</div>
+      </div>
+      <div class="kpi${condMod}">
+        <div class="kpi__label">Condición General</div>
+        <div class="kpi__value">${LABELS.cond[a.overallCond]}</div>
+        <div class="kpi__sub">NDVI promedio: ${a.avgNDVI.toFixed(2)}</div>
+      </div>
+      <div class="kpi${wsMod}">
+        <div class="kpi__label">Estrés Hídrico</div>
+        <div class="kpi__value">${LABELS.ws[a.overallWS]}</div>
+        <div class="kpi__sub">${a.stressedLots.length} de ${a.lots.length} lotes en alerta</div>
+      </div>
+      <div class="kpi kpi--accent">
+        <div class="kpi__label">Valor Productivo Estimado</div>
+        <div class="kpi__value">${fmt.usd(a.totalVal)}</div>
+        <div class="kpi__delta kpi__delta${a.yieldGap >= 0 ? '--up' : '--down'}">${fmt.pct(a.yieldGap)} vs histórico</div>
+      </div>
+      <div class="kpi${alertMod}">
+        <div class="kpi__label">Alertas Activas</div>
+        <div class="kpi__value">${a.totalAlerts}</div>
+        <div class="kpi__sub">${a.totalAlerts === 0 ? 'Sin alertas' : 'Requieren atención'}</div>
+      </div>`;
+  },
+
+  execSummary(client, a) {
+    const { summary, reco } = generateExecSummary(client, a);
+    $('#execSummary').innerHTML = `
+      <div class="exec-summary">
+        <div class="exec-summary__hd">
+          <svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 1l2 5h5l-4 3 1.5 5L8 11l-4.5 3L5 9 1 6h5z" fill="rgba(255,255,255,.5)"/></svg>
+          Resumen Ejecutivo para Decisión
+        </div>
+        <div class="exec-summary__text">${summary}</div>
+        <div class="exec-summary__reco">${reco}</div>
+      </div>`;
+  },
+
+  sensing(client, a) {
+    const dc = CROPS[a.domCrop[0]];
+    $('#sensingPanel').innerHTML = `
+      <div class="sensing__hd">
+        <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--g700)" stroke-width="1.5" stroke-dasharray="3 2"/><circle cx="8" cy="8" r="2" fill="var(--g600)"/></svg>
+        Qué Estamos Sensando
+      </div>
+      <div class="sensing__grid">
+        <div class="sensing__item">
+          <span class="sensing__item-label">Superficie Activa</span>
+          <span class="sensing__item-value">${fmt.ha(a.totalHa)}</span>
+        </div>
+        <div class="sensing__item">
+          <span class="sensing__item-label">Cultivo Principal</span>
+          <span class="sensing__item-value"><span class="crop-cell"><span class="crop-dot" style="background:${dc.color}"></span>${dc.label} (${Math.round(a.domCrop[1] / a.totalHa * 100)}%)</span></span>
+        </div>
+        <div class="sensing__item">
+          <span class="sensing__item-label">Rinde Estimado Prom.</span>
+          <span class="sensing__item-value">${fmt.y(a.avgYield)}</span>
+        </div>
+        <div class="sensing__item">
+          <span class="sensing__item-label">NDVI Promedio</span>
+          <span class="sensing__item-value">${a.avgNDVI.toFixed(2)}</span>
+        </div>
+        <div class="sensing__item">
+          <span class="sensing__item-label">Benchmark Zonal</span>
+          <span class="sensing__item-value">${a.bmAbove + a.bmBelow > 0 ? a.bmAbove + ' sobre / ' + a.bmBelow + ' debajo' : 'Sin datos'}</span>
+        </div>
+        <div class="sensing__item">
+          <span class="sensing__item-label">Continuidad Agrícola</span>
+          <span class="sensing__item-value">Activa</span>
+        </div>
+        <div class="sensing__item">
+          <span class="sensing__item-label">Alertas Productivas</span>
+          <span class="sensing__item-value">${a.totalAlerts} señal${a.totalAlerts !== 1 ? 'es' : ''}</span>
+        </div>
+        <div class="sensing__item">
+          <span class="sensing__item-label">Último Update</span>
+          <span class="sensing__item-value">${fmt.date($('#fCorte').value)}</span>
+        </div>
+      </div>`;
+  },
+
+  semaforos(a) {
+    const items = [
+      { label: 'Estrés Hídrico',                          value: LABELS.ws[a.overallWS],     cls: CLASSES.ws[a.overallWS] },
+      { label: 'Condición General del Cultivo',            value: LABELS.cond[a.overallCond], cls: CLASSES.cond[a.overallCond] },
+      { label: 'Consistencia vs Producción Esperada',      value: a.consistency === 'green' ? 'Dentro del rango' : (a.consistency === 'yellow' ? 'Brecha moderada' : 'Brecha significativa'), cls: a.consistency },
+      { label: 'Alerta Temprana',                          value: a.earlyWarning === 'green' ? 'Sin alertas' : (a.earlyWarning === 'yellow' ? 'Monitoreo activo' : 'Alerta crítica'), cls: a.earlyWarning }
+    ];
+    $('#semGrid').innerHTML = items.map(i => `
+      <div class="sem-card">
+        <div class="sem-card__label">${i.label}</div>
+        <div class="sem-card__value">
+          <span class="sem__dot sem__dot--${i.cls}"></span>
+          ${i.value}
+        </div>
+      </div>`).join('');
+  },
+
+  lotTable(a) {
+    const bm = a.bm;
+    const rows = a.lots.map(l => {
+      const crop = CROPS[l.crop];
+      const bmVal = bm[l.crop] || null;
+      const bmDelta = bmVal ? ((l.yEst - bmVal) / bmVal * 100) : null;
+      return `<tr data-lot="${l.id}">
+        <td><span class="crop-cell"><span class="crop-dot" style="background:${crop.color}"></span>${l.name}</span></td>
+        <td class="num">${fmt.ha(l.ha)}</td>
+        <td>${crop.label}</td>
+        <td class="num">${fmt.y(l.yEst)}</td>
+        <td class="num">${l.ndvi.toFixed(2)}</td>
+        <td><span class="badge ${badgeClass(CLASSES.trend[l.ndviTrend])}">${LABELS.trend[l.ndviTrend]}</span></td>
+        <td><span class="sem"><span class="sem__dot sem__dot--${CLASSES.ws[l.ws]}"></span>${LABELS.ws[l.ws]}</span></td>
+        <td><span class="badge ${badgeClass(CLASSES.cond[l.cond])}">${LABELS.cond[l.cond]}</span></td>
+        <td class="num">${bmDelta !== null ? '<span class="var var--' + (bmDelta >= 0 ? 'up' : 'down') + '">' + fmt.pct(bmDelta) + '</span>' : '—'}</td>
+        <td>${l.alerts.length ? '<span class="badge badge--down">' + l.alerts.length + ' alerta' + (l.alerts.length > 1 ? 's' : '') + '</span>' : '<span class="badge badge--up">Sin alertas</span>'}</td>
+      </tr>`;
+    }).join('');
+
+    $('#lotTable').innerHTML = `<table class="tbl"><thead><tr>
+      <th>Lote</th><th>Superficie</th><th>Cultivo</th><th>Rinde Est.</th><th>NDVI</th><th>Tendencia</th><th>Estrés Hídrico</th><th>Condición</th><th>vs Benchmark</th><th>Alertas</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  },
+
+  lotDetail(lot, client) {
+    const el = $('#lotDetail');
+    const crop = CROPS[lot.crop];
+    const bm = BENCHMARKS[client.departamento] || {};
+    const bmVal = bm[lot.crop] || null;
+    const history = generateNDVIHistory(lot);
+
+    const svg = buildSVGChart({
+      W: 500, H: 100,
+      pad: { l: 40, r: 10, t: 10, b: 25 },
+      data: history,
+      color: crop.color,
+      showValues: false,
+      showAreaFill: false
+    });
+
+    const alertsHtml = lot.alerts.length
+      ? '<div style="margin-top:var(--s3)"><div style="font-size:.82rem;font-weight:600;color:var(--sig-down);margin-bottom:var(--s2)">Alertas del Lote</div>'
+        + lot.alerts.map(a => '<div style="font-size:.82rem;color:var(--n600);padding:var(--s1) 0 var(--s1) var(--s4);position:relative;line-height:1.5"><span style="position:absolute;left:0;color:var(--sig-down);font-weight:bold">!</span>' + a + '</div>').join('')
+        + '</div>'
+      : '';
+
+    el.innerHTML = `
+      <div class="lot-detail__hd">
+        <div class="lot-detail__hd-title">${lot.name} — ${crop.label}</div>
+        <button class="btn btn--sec btn--sm" onclick="UI.closeLotDetail()">Cerrar</button>
+      </div>
+      <div class="lot-detail__grid">
+        <div class="lot-detail__metric">
+          <div class="lot-detail__metric-label">Superficie</div>
+          <div class="lot-detail__metric-value">${fmt.ha(lot.ha)}</div>
+        </div>
+        <div class="lot-detail__metric">
+          <div class="lot-detail__metric-label">Rinde Estimado</div>
+          <div class="lot-detail__metric-value">${fmt.y(lot.yEst)}</div>
+          <div class="lot-detail__metric-sub">Histórico: ${fmt.y(lot.yHist)}</div>
+        </div>
+        <div class="lot-detail__metric">
+          <div class="lot-detail__metric-label">NDVI Actual</div>
+          <div class="lot-detail__metric-value">${lot.ndvi.toFixed(2)}</div>
+          <div class="lot-detail__metric-sub">${LABELS.trend[lot.ndviTrend]}</div>
+        </div>
+        <div class="lot-detail__metric">
+          <div class="lot-detail__metric-label">Estrés Hídrico</div>
+          <div class="lot-detail__metric-value"><span class="sem"><span class="sem__dot sem__dot--${CLASSES.ws[lot.ws]}"></span>${LABELS.ws[lot.ws]}</span></div>
+          <div class="lot-detail__metric-sub">Proyección: ${LABELS.ws[lot.wsProj]}</div>
+        </div>
+        <div class="lot-detail__metric">
+          <div class="lot-detail__metric-label">Condición</div>
+          <div class="lot-detail__metric-value"><span class="badge ${badgeClass(CLASSES.cond[lot.cond])}">${LABELS.cond[lot.cond]}</span></div>
+        </div>
+        <div class="lot-detail__metric">
+          <div class="lot-detail__metric-label">vs Benchmark Zonal</div>
+          <div class="lot-detail__metric-value">${bmVal ? fmt.y(bmVal) : '—'}</div>
+          <div class="lot-detail__metric-sub">${bmVal ? '<span class="var var--' + (lot.yEst >= bmVal ? 'up' : 'down') + '">' + fmt.pct((lot.yEst - bmVal) / bmVal * 100) + '</span>' : ''}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:var(--s3)">
+        <div style="font-size:.82rem;font-weight:600;color:var(--n700);margin-bottom:var(--s1)">Evolución NDVI — Últimos 90 Días</div>
+        <div class="timeline-chart">${svg}</div>
+      </div>
+      ${alertsHtml}`;
+    el.classList.add('is-open');
+  },
+
+  alerts(a) {
+    const allAlerts = [];
+    a.lots.forEach(l => {
+      l.alerts.forEach(text => {
+        const tl = text.toLowerCase();
+        const severity = (tl.includes('severo') || tl.includes('pérdida')) ? 'red'
+          : (tl.includes('debajo') || tl.includes('deteriorad')) ? 'orange'
+          : 'yellow';
+        allAlerts.push({ text, lot: l, severity, crop: CROPS[l.crop] });
+      });
+    });
+
+    const sevOrder = { red: 0, orange: 1, yellow: 2 };
+    allAlerts.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+
+    if (!allAlerts.length) {
+      $('#alertList').innerHTML = '<div class="empty" style="padding:var(--s6)"><div class="empty__icon">✓</div><div class="empty__title">Sin alertas activas</div><div class="empty__text">Todos los lotes se encuentran dentro de los parámetros esperados. No se detectan señales que requieran atención especial.</div></div>';
+      return;
+    }
+
+    const sevIcon  = { red: '▲', orange: '●', yellow: '◆' };
+    const sevLabel = { red: 'Crítica', orange: 'Moderada', yellow: 'Monitoreo' };
+
+    $('#alertList').innerHTML = allAlerts.map(a => `
+      <div class="alert-item alert-item--${a.severity}">
+        <div class="alert-item__icon">${sevIcon[a.severity]}</div>
+        <div class="alert-item__body">
+          <div class="alert-item__title">${a.lot.name} — ${a.crop.label}</div>
+          <div class="alert-item__text">${a.text}</div>
+          <div class="alert-item__badge"><span class="badge ${badgeClass(a.severity)}">${sevLabel[a.severity]}</span></div>
+        </div>
+      </div>`).join('');
+  },
+
+  evolution(a) {
+    // Aggregate NDVI per date (weighted by ha)
+    const agg = Array.from({ length: 6 }, () => ({ sum: 0, wt: 0 }));
+    a.lots.forEach(l => {
+      generateNDVIHistory(l).forEach((v, i) => {
+        agg[i].sum += v * l.ha;
+        agg[i].wt  += l.ha;
+      });
+    });
+    const avgPts = agg.map(d => d.wt > 0 ? d.sum / d.wt : 0);
+
+    const mainSvg = buildSVGChart({
+      W: 680, H: 260,
+      pad: { l: 50, r: 20, t: 30, b: 40 },
+      data: avgPts,
+      color: '#2e7d4f',
+      showValues: true,
+      showAreaFill: true,
+      title: 'NDVI Promedio Ponderado — Evolución'
+    });
+
+    // Per-crop sparklines
+    const crops = {};
+    a.lots.forEach(l => {
+      if (!crops[l.crop]) crops[l.crop] = { lots: [], totalHa: 0 };
+      crops[l.crop].lots.push(l);
+      crops[l.crop].totalHa += l.ha;
+    });
+
+    let sparklines = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--s4);margin-top:var(--s5)">';
+    for (const [key, data] of Object.entries(crops)) {
+      const ci = CROPS[key];
+      const avgY    = data.lots.reduce((s, l) => s + l.yEst * l.ha, 0) / data.totalHa;
+      const avgNdvi = data.lots.reduce((s, l) => s + l.ndvi * l.ha, 0) / data.totalHa;
+      sparklines += `
+        <div style="padding:var(--s3);border:1px solid var(--n150);border-radius:var(--r2)">
+          <div style="display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)">
+            <span class="crop-dot" style="background:${ci.color}"></span>
+            <span style="font-weight:600;font-size:.85rem">${ci.label}</span>
+            <span style="font-size:.75rem;color:var(--n400);margin-left:auto">${fmt.ha(data.totalHa)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);font-size:.8rem">
+            <div><span style="color:var(--n500)">Rinde est.:</span> <strong>${fmt.y(avgY)}</strong></div>
+            <div><span style="color:var(--n500)">NDVI:</span> <strong>${avgNdvi.toFixed(2)}</strong></div>
+          </div>
+        </div>`;
+    }
+    sparklines += '</div>';
+
+    $('#evolutionChart').innerHTML = mainSvg + sparklines;
+  },
+
+  insights(ins) {
+    const el = $('#insightsBlock');
+    el.style.display = ins.length ? '' : 'none';
+    $('#insightsList').innerHTML = ins.map(i => `<div class="insights__item">${i}</div>`).join('');
+  }
+};
+
+
+/* =======================================================
+   GEOMAP — Interactive Leaflet map component
+   ======================================================= */
+
+const GeoMap = (() => {
+
+  const DEPTS = [
+    // Buenos Aires
+    { name: 'Pergamino',           prov: 'Buenos Aires',  lat: -33.89, lng: -60.57, ha: 1880 },
+    { name: 'Junín',               prov: 'Buenos Aires',  lat: -34.59, lng: -60.95, ha: 1600 },
+    { name: 'Rojas',               prov: 'Buenos Aires',  lat: -34.20, lng: -60.73, ha: 870  },
+    { name: 'Salto',               prov: 'Buenos Aires',  lat: -34.29, lng: -60.25, ha: 0    },
+    { name: 'Colón',               prov: 'Buenos Aires',  lat: -33.89, lng: -61.10, ha: 0    },
+    // Córdoba
+    { name: 'Marcos Juárez',       prov: 'Córdoba',       lat: -32.69, lng: -62.10, ha: 950  },
+    { name: 'Unión',               prov: 'Córdoba',       lat: -32.87, lng: -62.90, ha: 1100 },
+    { name: 'Río Cuarto',          prov: 'Córdoba',       lat: -33.13, lng: -64.35, ha: 640  },
+    { name: 'General San Martín',  prov: 'Córdoba',       lat: -31.53, lng: -63.25, ha: 0    },
+    { name: 'Tercero Arriba',      prov: 'Córdoba',       lat: -32.18, lng: -63.65, ha: 0    },
+    // Santa Fe
+    { name: 'General López',       prov: 'Santa Fe',      lat: -33.68, lng: -61.72, ha: 2550 },
+    { name: 'Caseros',             prov: 'Santa Fe',      lat: -33.05, lng: -61.17, ha: 0    },
+    { name: 'Constitución',        prov: 'Santa Fe',      lat: -33.23, lng: -60.50, ha: 1400 },
+    { name: 'Belgrano',            prov: 'Santa Fe',      lat: -32.62, lng: -61.50, ha: 0    },
+    { name: 'Iriondo',             prov: 'Santa Fe',      lat: -32.62, lng: -61.03, ha: 0    },
+    // Entre Ríos
+    { name: 'Paraná',              prov: 'Entre Ríos',    lat: -31.73, lng: -60.53, ha: 520  },
+    { name: 'Diamante',            prov: 'Entre Ríos',    lat: -32.06, lng: -60.64, ha: 0    },
+    { name: 'Victoria',            prov: 'Entre Ríos',    lat: -32.62, lng: -60.15, ha: 0    },
+    { name: 'Gualeguaychú',        prov: 'Entre Ríos',    lat: -33.01, lng: -59.32, ha: 0    },
+    // La Pampa
+    { name: 'Quemú Quemú',         prov: 'La Pampa',      lat: -36.05, lng: -63.57, ha: 3100 },
+    { name: 'Maracó',              prov: 'La Pampa',      lat: -35.67, lng: -63.75, ha: 0    },
+    { name: 'Catriló',             prov: 'La Pampa',      lat: -36.37, lng: -63.42, ha: 0    }
+  ];
+
+  const PROV_COLORS = {
+    'Buenos Aires': { fill: '#2e7d4f', stroke: '#1a5c38' },
+    'Córdoba':      { fill: '#1565c0', stroke: '#0d47a1' },
+    'Santa Fe':     { fill: '#ef6c00', stroke: '#bf360c' },
+    'Entre Ríos':   { fill: '#7b1fa2', stroke: '#4a148c' },
+    'La Pampa':     { fill: '#c62828', stroke: '#8e0000' }
+  };
+
+  const TILES = {
+    terrain:   { url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',           attr: '© OpenTopoMap' },
+    satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: '© Esri' },
+    osm:       { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',          attr: '© OpenStreetMap' }
+  };
+
+  const PIN_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
+    <defs><filter id="s" x="-20%" y="-10%" width="140%" height="130%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".3"/></filter></defs>
+    <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#c62828" filter="url(#s)"/>
+    <circle cx="14" cy="13" r="5.5" fill="white"/><circle cx="14" cy="13" r="2.5" fill="#c62828"/>
+  </svg>`;
+
+  let map, tileLayer, pin, circles = {};
+  let currentTile = 'terrain';
+
+  function render() {
+    if (!window.L) return;
+
+    map = L.map('geomap', { center: [-33.5, -61.5], zoom: 7, minZoom: 5, maxZoom: 15 });
+    tileLayer = L.tileLayer(TILES.terrain.url, { attribution: TILES.terrain.attr }).addTo(map);
+
+    // Draw department circles
+    DEPTS.forEach(d => {
+      const hasData = d.ha > 0;
+      const col = PROV_COLORS[d.prov];
+      const radius = hasData ? Math.max(6000, Math.min(25000, Math.sqrt(d.ha) * 400)) : 5000;
+
+      const baseStyle = {
+        color: col.stroke,
+        fillColor: col.fill,
+        fillOpacity: hasData ? 0.2 : 0.08,
+        weight: hasData ? 2 : 1,
+        dashArray: hasData ? null : '4,4'
+      };
+      const hoverStyle = {
+        fillOpacity: hasData ? 0.4 : 0.15,
+        weight: hasData ? 3 : 1.5
+      };
+
+      const circle = L.circle([d.lat, d.lng], { radius, ...baseStyle }).addTo(map);
+
+      const haStr = hasData ? fmt.n(d.ha) + ' ha' : 'Sin datos';
+      circle.bindPopup(`<b>${d.name}</b><br><span style="color:#777;font-size:.85em">${d.prov}</span><br>${haStr}`, { closeButton: false });
+
+      circle.on('mouseover', function () { this.setStyle(hoverStyle); this.openPopup(); });
+      circle.on('mouseout',  function () { this.setStyle(baseStyle);  this.closePopup(); });
+
+      circles[d.name] = { layer: circle, baseStyle };
+
+      // Text label
+      const labelColor = hasData ? col.stroke : '#888';
+      const labelWeight = hasData ? 'bold' : 'normal';
+      L.marker([d.lat, d.lng], {
+        interactive: false,
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="font-size:10px;font-weight:${labelWeight};color:${labelColor};text-shadow:0 0 3px #fff,0 0 5px #fff;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%)">${d.name}</div>`,
+          iconSize: [0, 0]
+        })
+      }).addTo(map);
+    });
+
+    // Click-to-pin
+    map.on('click', e => placePin(e.latlng.lat, e.latlng.lng));
+
+    // Legend
+    const legendEl = $('#geoLegend');
+    legendEl.innerHTML = Object.entries(PROV_COLORS).map(([prov, col]) =>
+      `<div class="geomap__legend-item"><span class="geomap__legend-swatch" style="background:${col.fill}"></span>${prov}</div>`
+    ).join('');
+
+    // Tile switcher
+    $('#geoTileBtns').addEventListener('click', e => {
+      const btn = e.target.closest('.geomap__tile-btn');
+      if (!btn || btn.classList.contains('is-active')) return;
+      $$('.geomap__tile-btn').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      switchTile(btn.dataset.tile);
+    });
+  }
+
+  function switchTile(key) {
+    if (!TILES[key] || !map) return;
+    currentTile = key;
+    map.removeLayer(tileLayer);
+    tileLayer = L.tileLayer(TILES[key].url, { attribution: TILES[key].attr }).addTo(map);
+  }
+
+  function placePin(lat, lng) {
+    if (!map) return;
+    clearPin();
+
+    const icon = L.icon({
+      iconUrl: 'data:image/svg+xml,' + encodeURIComponent(PIN_ICON_SVG),
+      iconSize: [28, 40],
+      iconAnchor: [14, 40],
+      popupAnchor: [0, -35]
+    });
+
+    pin = L.marker([lat, lng], { icon, draggable: true }).addTo(map);
+    pin.on('dragend', () => {
+      const p = pin.getLatLng();
+      _updatePinPanel(p.lat, p.lng);
+    });
+    _updatePinPanel(lat, lng);
+  }
+
+  function clearPin() {
+    if (pin && map) { map.removeLayer(pin); pin = null; }
+    const el = $('#geoPinContent');
+    el.innerHTML = '<div class="geomap__pin-empty">Hacé click en el mapa para marcar un punto de referencia. Se mostrarán las coordenadas y la provincia/departamento más cercano.</div>';
+  }
+
+  function _updatePinPanel(lat, lng) {
+    // Find nearest department
+    let nearest = null, minDist = Infinity;
+    DEPTS.forEach(d => {
+      const dist = Math.sqrt(Math.pow(d.lat - lat, 2) + Math.pow(d.lng - lng, 2));
+      if (dist < minDist) { minDist = dist; nearest = d; }
+    });
+
+    const deptName  = (nearest && minDist < 1.5) ? nearest.name : '—';
+    const provName  = (nearest && minDist < 1.5) ? nearest.prov : 'Fuera de cobertura';
+
+    $('#geoPinContent').innerHTML = `
+      <div class="geomap__pin-grid">
+        <div class="geomap__pin-field"><label>Latitud</label><span class="mono">${lat.toFixed(6)}°</span></div>
+        <div class="geomap__pin-field"><label>Longitud</label><span class="mono">${lng.toFixed(6)}°</span></div>
+        <div class="geomap__pin-field"><label>Provincia</label><span>${provName}</span></div>
+        <div class="geomap__pin-field"><label>Departamento</label><span>${deptName}</span></div>
+      </div>
+      <div class="geomap__pin-actions">
+        <button class="btn btn--sec btn--sm" onclick="GeoMap.clearPin()">Quitar pin</button>
+        <button class="btn btn--pri btn--sm" onclick="GeoMap._applyFilter('${provName}','${deptName}')">Usar como filtro</button>
+      </div>`;
+  }
+
+  function _applyFilter(prov, dept) {
+    // This would set province/department selects in a full proto — placeholder for now
+    if (typeof UI !== 'undefined') {
+      UI._showToast(`Filtro aplicado: ${dept}, ${prov}`);
+    }
+  }
+
+  function highlightDept(deptName) {
+    if (!map) return;
+    const target = DEPTS.find(d => d.name === deptName);
+    if (!target) return;
+
+    // Reset all
+    Object.values(circles).forEach(c => c.layer.setStyle(c.baseStyle));
+
+    // Highlight
+    const c = circles[deptName];
+    if (c) {
+      c.layer.setStyle({ fillOpacity: 0.45, weight: 3 });
+    }
+    map.flyTo([target.lat, target.lng], 9, { duration: 0.8 });
+  }
+
+  return { render, placePin, clearPin, highlightDept, _applyFilter };
+})();
+
+
+/* =======================================================
+   APP STATE — Single source of truth
+   ======================================================= */
+
+const AppState = {
+  client:   null,
+  analysis: null
+};
+
+
+/* =======================================================
+   UI CONTROLLER — Centralized event handling & orchestration
+   ======================================================= */
+
+const UI = {
+
+  init() {
+    // Bind static date labels
+    const dateStr = fmt.date(META.lastUpdate);
+    $$('[data-bind="date"]').forEach(el => el.textContent = dateStr);
+
+    this._bindSearch();
+    this._bindFilters();
+    this._bindTabs();
+    this._bindLotTableClick();
+    this._bindModal();
+    this._bindActions();
+
+    // Auto-load in demo mode
+    if (META.demoMode) {
+      setTimeout(() => {
+        this.loadClient(CLIENTS[0]);
+        $('#searchInput').value = CLIENTS[0].name;
+      }, 400);
+    }
+  },
+
+  /* --- Private event binders --- */
+
+  _bindSearch() {
+    const inp = $('#searchInput');
+    const dd  = $('#searchDD');
+    inp.addEventListener('input', () => this._handleSearch(inp.value));
+    inp.addEventListener('focus', () => { if (inp.value.length >= 2) dd.classList.add('is-open'); });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.search-wrap')) dd.classList.remove('is-open');
+    });
+  },
+
+  _bindFilters() {
+    $('#fCorte').addEventListener('change', () => { if (AppState.client) this.loadClient(AppState.client); });
+    $('#fCrop').addEventListener('change',  () => { if (AppState.client) this.loadClient(AppState.client); });
+  },
+
+  _bindTabs() {
+    $$('.tab-btn').forEach(btn =>
+      btn.addEventListener('click', () => this._switchTab(btn.dataset.tab))
+    );
+  },
+
+  _bindLotTableClick() {
+    document.addEventListener('click', e => {
+      const row = e.target.closest('tr[data-lot]');
+      if (row && AppState.client) {
+        const lot = AppState.analysis.lots.find(l => l.id === row.dataset.lot);
+        if (lot) Render.lotDetail(lot, AppState.client);
+      }
+    });
+  },
+
+  _bindModal() {
+    const modal = $('#modalMethod');
+    $('#btnMethod').addEventListener('click', () => modal.classList.add('is-open'));
+    $('#btnCloseModal').addEventListener('click', () => modal.classList.remove('is-open'));
+    modal.addEventListener('click', e => {
+      if (e.target.classList.contains('modal-bg')) modal.classList.remove('is-open');
+    });
+  },
+
+  _bindActions() {
+    $('#btnIncluir').addEventListener('click',  () => this._showToast('Información agronómica incluida en la evaluación crediticia del cliente.'));
+    $('#btnExportar').addEventListener('click', () => this._showToast('Ficha agronómica exportada correctamente.'));
+  },
+
+  /* --- Search handler --- */
+
+  _handleSearch(q) {
+    const dd = $('#searchDD');
+    if (q.length < 2) { dd.classList.remove('is-open'); return; }
+
+    const ql = q.toLowerCase();
+    const matches = CLIENTS.filter(c =>
+      c.name.toLowerCase().includes(ql) ||
+      c.cuit.includes(ql) ||
+      c.establishments.some(e => e.name.toLowerCase().includes(ql))
+    );
+
+    if (!matches.length) {
+      dd.innerHTML = '<div class="search-dd__item" style="color:var(--n400);cursor:default">No se encontraron resultados</div>';
+      dd.classList.add('is-open');
+      return;
+    }
+
+    dd.innerHTML = matches.map(c => `
+      <div class="search-dd__item" data-client="${c.id}">
+        <div class="search-dd__name">${c.name}</div>
+        <div class="search-dd__meta">CUIT: ${c.cuit} — ${c.departamento}, ${c.provincia} — ${c.establishments.reduce((s, e) => s + e.ha, 0)} ha</div>
+      </div>`).join('');
+
+    dd.querySelectorAll('.search-dd__item[data-client]').forEach(item => {
+      item.addEventListener('click', () => {
+        const client = CLIENTS.find(c => c.id === item.dataset.client);
+        if (client) {
+          $('#searchInput').value = client.name;
+          dd.classList.remove('is-open');
+          this.loadClient(client);
+        }
+      });
+    });
+
+    dd.classList.add('is-open');
+  },
+
+  /* --- Client loading orchestrator --- */
+
+  loadClient(client) {
+    AppState.client = client;
+    const cropFilter = $('#fCrop').value;
+    const analysis = analyzeClient(client, cropFilter);
+
+    if (!analysis) {
+      $('#stateResults').style.display = 'none';
+      $('#stateEmpty').style.display = '';
+      $('#stateEmpty').querySelector('.empty__title').textContent = 'Sin datos para los filtros aplicados';
+      $('#stateEmpty').querySelector('.empty__text').textContent = 'No se encontraron lotes activos con el cultivo seleccionado para este cliente. Modifique el filtro de cultivo.';
+      return;
+    }
+
+    AppState.analysis = analysis;
+
+    // Breadcrumb
+    $('#crumbSep').style.display = '';
+    $('#crumbDetail').style.display = '';
+    $('#crumbDetail').textContent = client.name;
+
+    // Show loading, then render
+    $('#stateEmpty').style.display = 'none';
+    $('#stateResults').style.display = 'none';
+    $('#stateLoading').style.display = '';
+
+    setTimeout(() => {
+      $('#stateLoading').style.display = 'none';
+      $('#stateResults').style.display = '';
+
+      Render.clientHeader(client);
+      Render.kpis(analysis);
+      Render.execSummary(client, analysis);
+      Render.sensing(client, analysis);
+      Render.semaforos(analysis);
+      Render.lotTable(analysis);
+      Render.alerts(analysis);
+      Render.evolution(analysis);
+      Render.insights(generateInsights(client, analysis));
+
+      this.closeLotDetail();
+      this._switchTab('lotes');
+
+      // Highlight client's department on map
+      GeoMap.highlightDept(client.departamento);
+    }, META.demoMode ? 400 : 900);
+  },
+
+  /* --- State reset --- */
+
+  reset() {
+    AppState.client = null;
+    AppState.analysis = null;
+    $('#searchInput').value = '';
+    $('#fCrop').value = 'all';
+    $('#stateResults').style.display = 'none';
+    $('#stateLoading').style.display = 'none';
+    $('#stateEmpty').style.display = '';
+    $('#stateEmpty').querySelector('.empty__title').textContent = 'Busque un cliente o lote para evaluar';
+    $('#stateEmpty').querySelector('.empty__text').textContent = 'Ingrese una razón social, CUIT o identificador de establecimiento para visualizar la condición agronómica actual con señales relevantes para la decisión crediticia.';
+    $('#crumbSep').style.display = 'none';
+    $('#crumbDetail').style.display = 'none';
+  },
+
+  /* --- UI helpers --- */
+
+  closeLotDetail() {
+    $('#lotDetail').classList.remove('is-open');
+  },
+
+  _switchTab(id) {
+    $$('.tab-btn').forEach(t => t.classList.toggle('is-active', t.dataset.tab === id));
+    $$('.tab-panel').forEach(p => p.classList.toggle('is-active', p.id === 'p-' + id));
+  },
+
+  _showToast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('is-visible');
+    setTimeout(() => t.classList.remove('is-visible'), 3000);
+  }
+};
+
+
+/* =======================================================
+   APP BOOTSTRAP
+   ======================================================= */
+document.addEventListener('DOMContentLoaded', () => {
+  UI.init();
+  GeoMap.render();
+});
+
+// Expose GeoMap globally for onclick handlers
+window.GeoMap = GeoMap;
+
+})();
+</script>
+  <div class="bold-back-bar">
+    <a href="index.html" class="bold-back-bar__link">
+      <span class="bold-back-bar__chev">&lt;</span> Volver a la suite BoldOS
+    </a>
+    <span class="bold-back-bar__motto">El dato es <em>nuestro faro</em></span>
+  </div>
+
+</body>
+</html>

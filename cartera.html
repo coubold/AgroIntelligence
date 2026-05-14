@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoldOS · Seguimiento de Cartera</title>
+
+  <!-- Leaflet (map tiles — requires internet for tile loading) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <style>
+  /* ==========================================================================
+     DESIGN TOKENS — SUITE AGRO INTELLIGENCE (shared across all modules)
+     ========================================================================== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* Brand greens */
+    --g900: #1a3a2a;  --g800: #1f4d35;  --g700: #266040;
+    --g600: #2e7d4f;  --g500: #3a9d63;  --g400: #5cb87a;
+    --g100: #dff0e4;  --g50:  #f0f8f2;
+
+    /* Neutrals */
+    --n900: #1a1a1a;  --n800: #2d2d2d;  --n700: #444;
+    --n600: #5a5a5a;  --n500: #777;     --n400: #999;
+    --n300: #b3b3b3;  --n200: #d4d4d4;  --n150: #e0e0e0;
+    --n100: #eee;     --n50:  #f7f7f7;  --white: #fff;
+
+    /* Signals */
+    --sig-up:    #2e7d32;  --sig-warn:  #f9a825;
+    --sig-alert: #ef6c00;  --sig-down:  #c62828;
+    --sig-mute:  #9e9e9e;
+    --sig-up-bg:    #e8f5e9;  --sig-warn-bg:  #fff8e1;
+    --sig-alert-bg: #fff3e0;  --sig-down-bg:  #ffebee;
+    --sig-mute-bg:  #f5f5f5;
+    --accent: #1565c0;  --accent-lt: #e3f2fd;
+
+    /* Typography */
+    --ff: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    --mono: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+
+    /* Spacing */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s8: 48px;
+
+    /* Radii & Shadows */
+    --r1: 4px; --r2: 6px; --r3: 8px; --r4: 12px;
+    --sh1: 0 1px 3px rgba(0,0,0,.08);
+    --sh2: 0 2px 8px rgba(0,0,0,.10);
+    --sh3: 0 4px 16px rgba(0,0,0,.12);
+    --tr: 200ms ease;
+  }
+
+  html { font-size: 14px; }
+  body {
+    font-family: var(--ff);
+    color: var(--n800);
+    background: var(--n50);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ==========================================================================
+     LAYOUT SHELL
+     ========================================================================== */
+  .hdr {
+    background: var(--g900);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--s5);
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .hdr__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .hdr__brand svg { width: 28px; height: 28px; }
+  .hdr__nav { display: flex; gap: var(--s5); align-items: center; }
+  .hdr__nav a, .hdr__nav span {
+    color: rgba(255,255,255,.5);
+    text-decoration: none;
+    font-size: .85rem;
+    transition: color var(--tr);
+    cursor: pointer;
+  }
+  .hdr__nav a:hover, .hdr__nav span:hover { color: var(--white); }
+  .hdr__nav .is-active { color: var(--white) !important; font-weight: 600; }
+  .hdr__meta {
+    font-size: .78rem;
+    color: rgba(255,255,255,.45);
+    display: flex;
+    gap: var(--s4);
+    align-items: center;
+  }
+
+  .crumb {
+    padding: var(--s2) var(--s5);
+    font-size: .8rem;
+    color: var(--n500);
+    background: var(--white);
+    border-bottom: 1px solid var(--n150);
+  }
+  .crumb a { color: var(--g700); text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+
+  .main { padding: var(--s5); max-width: 1440px; margin: 0 auto; }
+
+  .ftr {
+    text-align: center;
+    padding: var(--s5);
+    font-size: .75rem;
+    color: var(--n400);
+    border-top: 1px solid var(--n150);
+    margin-top: var(--s6);
+  }
+
+  /* ==========================================================================
+     COMPONENTS
+     ========================================================================== */
+
+  /* Card */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    box-shadow: var(--sh1);
+    padding: var(--s5);
+    margin-bottom: var(--s4);
+    transition: box-shadow var(--tr);
+  }
+  .card:hover { box-shadow: var(--sh2); }
+  .card__title {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--n800);
+    margin-bottom: var(--s4);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+
+  /* KPI strip */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--s4);
+    margin-bottom: var(--s5);
+  }
+  .kpi {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s4) var(--s5);
+    box-shadow: var(--sh1);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--g600);
+  }
+  .kpi--warn::before  { background: var(--sig-warn); }
+  .kpi--down::before  { background: var(--sig-down); }
+  .kpi--accent::before { background: var(--accent); }
+  .kpi--alert::before { background: var(--sig-alert); }
+  .kpi__label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--n500);
+    margin-bottom: var(--s1);
+  }
+  .kpi__value {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--n900);
+    line-height: 1.2;
+  }
+  .kpi__sub { font-size: .78rem; color: var(--n400); margin-top: var(--s1); }
+  .kpi__delta { font-size: .8rem; font-weight: 600; margin-top: var(--s1); }
+  .kpi__delta--up   { color: var(--sig-up); }
+  .kpi__delta--down { color: var(--sig-down); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--n150);
+    margin-bottom: var(--s5);
+  }
+  .tab-btn {
+    padding: var(--s2) var(--s5);
+    font-size: .85rem;
+    font-weight: 500;
+    color: var(--n500);
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--tr);
+    background: none;
+    font-family: var(--ff);
+  }
+  .tab-btn:hover { color: var(--g700); }
+  .tab-btn.is-active {
+    color: var(--g800);
+    border-bottom-color: var(--g700);
+    font-weight: 600;
+  }
+  .tab-panel        { display: none; }
+  .tab-panel.is-active { display: block; }
+
+  /* Tables */
+  .tbl { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .tbl thead th {
+    background: var(--n50);
+    text-align: left;
+    padding: var(--s2) var(--s4);
+    font-weight: 600;
+    color: var(--n700);
+    border-bottom: 2px solid var(--n200);
+    font-size: .76rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .tbl tbody tr {
+    border-bottom: 1px solid var(--n100);
+    transition: background var(--tr);
+    cursor: pointer;
+  }
+  .tbl tbody tr:hover { background: var(--g50); }
+  .tbl tbody td { padding: var(--s2) var(--s4); vertical-align: middle; }
+  .tbl tfoot td {
+    padding: var(--s2) var(--s4);
+    font-weight: 700;
+    border-top: 2px solid var(--n200);
+  }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--mono);
+    font-size: .82rem;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .73rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge--up   { background: var(--sig-up-bg);   color: var(--sig-up); }
+  .badge--warn { background: var(--sig-warn-bg); color: #f57f17; }
+  .badge--down { background: var(--sig-down-bg); color: var(--sig-down); }
+  .badge--alert { background: var(--sig-alert-bg); color: var(--sig-alert); }
+  .badge--mute { background: var(--sig-mute-bg); color: var(--n600); }
+  .badge--blue { background: var(--accent-lt); color: var(--accent); }
+  .badge--gray { background: var(--n100); color: var(--n600); }
+
+  /* Semáforo dot */
+  .sem-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .sem-dot--green  { background: var(--sig-up); box-shadow: 0 0 6px rgba(46,125,50,.4); }
+  .sem-dot--yellow { background: var(--sig-warn); box-shadow: 0 0 6px rgba(249,168,37,.4); }
+  .sem-dot--orange { background: var(--sig-alert); box-shadow: 0 0 6px rgba(239,108,0,.4); }
+  .sem-dot--red    { background: var(--sig-down); box-shadow: 0 0 6px rgba(198,40,40,.4); }
+  .sem-dot--gray   { background: var(--sig-mute); }
+
+  /* Forms */
+  .field { margin-bottom: var(--s4); }
+  .field__label {
+    display: block;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--n700);
+    margin-bottom: var(--s1);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .field__select, .field__input {
+    width: 100%;
+    padding: var(--s2) var(--s4);
+    border: 1px solid var(--n200);
+    border-radius: var(--r2);
+    font-size: .9rem;
+    font-family: var(--ff);
+    color: var(--n800);
+    background: var(--white);
+    transition: border-color var(--tr), box-shadow var(--tr);
+  }
+  .field__select:focus, .field__input:focus {
+    outline: none;
+    border-color: var(--g600);
+    box-shadow: 0 0 0 3px rgba(46,125,79,.12);
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s2) var(--s5);
+    border-radius: var(--r2);
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: var(--ff);
+    cursor: pointer;
+    border: none;
+    transition: all var(--tr);
+  }
+  .btn--pri { background: var(--g700); color: var(--white); }
+  .btn--pri:hover { background: var(--g800); box-shadow: var(--sh2); }
+  .btn--sec { background: var(--white); color: var(--g700); border: 1px solid var(--g700); }
+  .btn--sec:hover { background: var(--g50); }
+  .btn--sm { padding: var(--s1) var(--s4); font-size: .78rem; }
+
+  /* Loading & Empty */
+  .loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s8);
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--n200);
+    border-top-color: var(--g700);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty {
+    text-align: center;
+    padding: var(--s8) var(--s5);
+    color: var(--n400);
+  }
+  .empty__icon { font-size: 2.5rem; margin-bottom: var(--s4); opacity: .35; }
+  .empty__title { font-size: 1rem; font-weight: 600; color: var(--n600); margin-bottom: var(--s2); }
+  .empty__text { font-size: .85rem; max-width: 420px; margin: 0 auto; line-height: 1.6; }
+
+  /* Insights */
+  .insights {
+    background: var(--g50);
+    border-left: 4px solid var(--g600);
+    border-radius: var(--r2);
+    padding: var(--s4) var(--s5);
+    margin: var(--s4) 0;
+  }
+  .insights__hd {
+    font-size: .76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--g800);
+    margin-bottom: var(--s2);
+  }
+  .insights__item {
+    font-size: .85rem;
+    color: var(--n700);
+    padding: var(--s1) 0 var(--s1) var(--s4);
+    position: relative;
+    line-height: 1.5;
+  }
+  .insights__item::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--g600);
+    font-weight: bold;
+  }
+
+  /* Modal */
+  .modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-bg.is-open { display: flex; }
+  .modal {
+    background: var(--white);
+    border-radius: var(--r4);
+    padding: var(--s6);
+    max-width: 780px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--sh3);
+  }
+  .modal__hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s5);
+  }
+  .modal__title { font-size: 1.1rem; font-weight: 700; color: var(--n900); }
+  .modal__close {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--n400);
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal__close:hover { color: var(--n700); }
+
+  /* ==========================================================================
+     GEO REFERENCE MAP (Leaflet) — from shared spec
+     ========================================================================== */
+  .geomap-section {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: var(--s5);
+    margin-bottom: var(--s4);
+  }
+  @media (max-width: 1100px) { .geomap-section { grid-template-columns: 1fr; } }
+  .geomap {
+    position: relative;
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    overflow: hidden;
+    min-height: 440px;
+    z-index: 1;
+  }
+  .geomap .leaflet-container {
+    height: 100%; width: 100%;
+    min-height: 440px;
+    border-radius: var(--r3);
+    font-family: var(--ff);
+  }
+  .geomap .leaflet-control-attribution {
+    font-size: .65rem;
+    background: rgba(255,255,255,.7) !important;
+    backdrop-filter: blur(3px);
+  }
+  .geomap__hint {
+    position: absolute;
+    top: var(--s2);
+    right: 50px;
+    background: rgba(26,58,42,.88);
+    color: var(--white);
+    padding: 4px 12px;
+    border-radius: var(--r1);
+    font-size: .72rem;
+    pointer-events: none;
+    z-index: 500;
+    backdrop-filter: blur(4px);
+    letter-spacing: .02em;
+  }
+  .geomap-panel { display: flex; flex-direction: column; gap: var(--s4); }
+  .geomap-pin-info {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s5);
+    box-shadow: var(--sh1);
+  }
+  .geomap-pin-info__title {
+    font-size: .85rem; font-weight: 600; color: var(--n800);
+    margin-bottom: var(--s3);
+    display: flex; align-items: center; gap: var(--s2);
+  }
+  .geomap-pin-info__title svg { flex-shrink: 0; }
+  .geomap-pin-info__empty {
+    font-size: .82rem; color: var(--n400); line-height: 1.6; padding: var(--s4) 0;
+  }
+  .geomap-pin-info__grid {
+    display: grid; grid-template-columns: auto 1fr;
+    gap: var(--s1) var(--s4); font-size: .82rem;
+  }
+  .geomap-pin-info__label { color: var(--n500); white-space: nowrap; }
+  .geomap-pin-info__val { font-weight: 600; color: var(--n800); font-family: var(--mono); font-size: .8rem; }
+  .geomap-pin-info__val--text { font-family: var(--ff); }
+  .geomap-pin-info__actions { margin-top: var(--s3); display: flex; gap: var(--s2); }
+
+  .dept-popup { font-size: .82rem; line-height: 1.5; }
+  .dept-popup strong { color: var(--g800); }
+  .dept-popup .dept-popup__prov { font-size: .72rem; color: var(--n400); }
+
+  .geomap-legend {
+    display: flex; gap: var(--s4); flex-wrap: wrap;
+    font-size: .72rem; color: var(--n500); padding: var(--s2) 0;
+  }
+  .geomap-legend__item { display: flex; align-items: center; gap: var(--s1); }
+  .geomap-legend__swatch {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.8);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.15);
+  }
+
+  .geomap-tiles { display: flex; gap: var(--s1); margin-top: var(--s2); }
+  .geomap-tiles__btn {
+    padding: 2px 8px; border-radius: var(--r1);
+    font-size: .7rem; font-family: var(--ff);
+    border: 1px solid var(--n200); background: var(--white);
+    color: var(--n600); cursor: pointer; transition: all var(--tr);
+  }
+  .geomap-tiles__btn:hover { border-color: var(--g600); color: var(--g700); }
+  .geomap-tiles__btn.is-active { background: var(--g700); color: var(--white); border-color: var(--g700); }
+
+  /* ==========================================================================
+     PAGE-SPECIFIC: CARTERA
+     ========================================================================== */
+
+  /* Dashboard grid */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: var(--s4);
+  }
+  @media (max-width: 1100px) { .dash-grid { grid-template-columns: 1fr; } }
+
+  /* Donut chart */
+  .donut-wrap { display: flex; align-items: center; justify-content: center; gap: var(--s5); flex-wrap: wrap; }
+  .donut-center { font-size: .85rem; color: var(--n600); text-align: center; }
+  .donut-center strong { display: block; font-size: 1.5rem; color: var(--n900); }
+
+  /* Alert list */
+  .alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    border-bottom: 1px solid var(--n100);
+    transition: background var(--tr);
+    cursor: pointer;
+  }
+  .alert-item:hover { background: var(--n50); }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-item__icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem; flex-shrink: 0;
+  }
+  .alert-item__icon--red { background: var(--sig-down-bg); color: var(--sig-down); }
+  .alert-item__icon--orange { background: var(--sig-alert-bg); color: var(--sig-alert); }
+  .alert-item__icon--yellow { background: var(--sig-warn-bg); color: #f57f17; }
+  .alert-item__body { flex: 1; }
+  .alert-item__title { font-size: .85rem; font-weight: 600; color: var(--n800); }
+  .alert-item__desc  { font-size: .78rem; color: var(--n500); margin-top: 2px; line-height: 1.4; }
+  .alert-item__time  { font-size: .68rem; color: var(--n400); margin-top: 2px; }
+
+  /* Utilization bar */
+  .util-bar { width: 100%; height: 8px; background: var(--n100); border-radius: 4px; overflow: hidden; }
+  .util-bar__fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+  .util-bar__fill--green  { background: var(--sig-up); }
+  .util-bar__fill--yellow { background: var(--sig-warn); }
+  .util-bar__fill--red    { background: var(--sig-down); }
+
+  /* Filters row for cartera */
+  .cartera-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s3);
+    align-items: end;
+    margin-bottom: var(--s4);
+  }
+  .cartera-filters .field { margin-bottom: 0; min-width: 160px; flex: 1; max-width: 220px; }
+  .cartera-filters .field__select { padding: 6px var(--s3); font-size: .82rem; }
+
+  /* Client detail drilldown */
+  .drill-back {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-size: .85rem;
+    color: var(--g700);
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: var(--s4);
+    transition: color var(--tr);
+  }
+  .drill-back:hover { color: var(--g900); }
+
+  .client-header {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    padding-bottom: var(--s4);
+    border-bottom: 1px solid var(--n150);
+    margin-bottom: var(--s4);
+  }
+  .client-avatar {
+    width: 48px; height: 48px;
+    background: var(--g100);
+    color: var(--g700);
+    border-radius: var(--r3);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .client-name { font-size: 1.1rem; font-weight: 700; color: var(--n900); }
+  .client-meta { font-size: .8rem; color: var(--n500); margin-top: 2px; }
+  .client-badges { display: flex; gap: var(--s2); margin-top: var(--s2); flex-wrap: wrap; }
+
+  /* Sensed data panel */
+  .sensed-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--s3);
+  }
+  .sensed-item {
+    background: var(--n50);
+    border-radius: var(--r2);
+    padding: var(--s3) var(--s4);
+  }
+  .sensed-item__label {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--n500);
+    margin-bottom: 2px;
+  }
+  .sensed-item__value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--n800);
+  }
+  .sensed-item__note { font-size: .72rem; color: var(--n400); margin-top: 2px; }
+
+  /* Semáforos (vertical traffic lights) */
+  .semaforo-row { display: flex; flex-wrap: wrap; gap: var(--s4); }
+  .semaforo-card {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r2);
+    padding: var(--s3) var(--s4);
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    flex: 1;
+    min-width: 160px;
+  }
+  .semaforo-lights {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: var(--n800);
+    border-radius: 10px;
+    padding: 4px 5px;
+  }
+  .semaforo-light {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.12);
+  }
+  .semaforo-light--r.lit { background: var(--sig-down); box-shadow: 0 0 6px var(--sig-down); }
+  .semaforo-light--y.lit { background: var(--sig-warn); box-shadow: 0 0 6px var(--sig-warn); }
+  .semaforo-light--g.lit { background: var(--sig-up); box-shadow: 0 0 6px var(--sig-up); }
+  .semaforo-info { flex: 1; }
+  .semaforo-info__label { font-size: .76rem; font-weight: 600; color: var(--n700); }
+  .semaforo-info__value { font-size: .72rem; margin-top: 1px; }
+
+  /* Method block */
+  .method-block {
+    margin-bottom: var(--s4);
+    padding: var(--s4);
+    background: var(--g50);
+    border-radius: var(--r2);
+    font-size: .85rem;
+  }
+  .method-block strong {
+    color: var(--g800);
+    font-size: .82rem;
+    display: block;
+    margin-bottom: var(--s1);
+  }
+  .method-block p { color: var(--n600); line-height: 1.55; }
+
+  @media (max-width: 768px) {
+    .hdr__nav { display: none; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .geomap-section { grid-template-columns: 1fr; }
+    .geomap { min-height: 320px; }
+    .cartera-filters .field { max-width: none; }
+    #scoreLayout { grid-template-columns: 1fr !important; }
+  }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="assets/bold-chrome.css">
+</head>
+<body>
+
+  <!-- ================================================================
+       HEADER
+       ================================================================ -->
+  <header class="bold-hdr">
+    <a href="index.html" class="bold-hdr__brand" aria-label="Ir al inicio">
+      <span class="bold-hdr__brand-mark">BOLD</span>
+      <span class="bold-hdr__brand-sep"></span>
+      <span class="bold-hdr__product">
+        <span class="bold-hdr__product-name">Seguimiento de Cartera</span>
+        <span class="bold-hdr__product-tag">Monitoreo en vivo del portfolio</span>
+      </span>
+    </a>
+    <nav class="bold-hdr__nav">
+      <a href="oportunidad.html">Oportunidad</a>
+      <a href="precalificacion.html">Precalificación</a>
+      <a href="info-agronomica.html">Info Agronómica</a>
+      <a href="cartera.html" class="is-active">Cartera</a>
+    </nav>
+    <div class="bold-hdr__meta">
+      <span class="bold-hdr__meta-pill">Campaña 2025/26</span>
+      <span data-bind="date" id="headerDate"></span>
+    </div>
+    <div class="bold-hdr__pulse"></div>
+  </header>
+
+  <div class="crumb">
+    <a href="index.html">Inicio</a> <span style="margin:0 4px">›</span> <span id="crumbTrail">Seguimiento de Cartera</span>
+  </div>
+
+  <!-- ================================================================
+       MAIN CONTENT
+       ================================================================ -->
+  <main class="main">
+
+    <!-- ============= DASHBOARD VIEW ============= -->
+    <div id="viewDashboard">
+
+      <!-- Filters -->
+      <div class="cartera-filters">
+        <div class="field">
+          <label class="field__label" for="fSearch">Cliente / CUIT</label>
+          <input class="field__input" type="text" id="fSearch" placeholder="Buscar por razón social o CUIT..." style="padding:6px var(--s3);font-size:.82rem">
+        </div>
+        <div class="field">
+          <label class="field__label" for="fProv">Provincia</label>
+          <select class="field__select" id="fProv"><option value="">Todas</option></select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fSemaforo">Semáforo</label>
+          <select class="field__select" id="fSemaforo">
+            <option value="">Todos</option>
+            <option value="green">Verde</option>
+            <option value="yellow">Amarillo</option>
+            <option value="orange">Naranja</option>
+            <option value="red">Rojo</option>
+            <option value="gray">Observación</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fEjecutivo">Ejecutivo</label>
+          <select class="field__select" id="fEjecutivo"><option value="">Todos</option></select>
+        </div>
+        <div style="display:flex;gap:var(--s2);align-items:end;padding-bottom:2px">
+          <button class="btn btn--pri btn--sm" id="btnFilter">Filtrar</button>
+          <button class="btn btn--sec btn--sm" id="btnClear">Limpiar</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row" id="dashKpis"></div>
+
+      <!-- Dashboard grid: map + sidebar -->
+      <div class="dash-grid">
+        <div>
+          <!-- Geo map -->
+          <section class="geomap-section card" style="margin-bottom:0">
+            <div class="geomap">
+              <div id="geoMap" style="width:100%;height:100%;min-height:440px"></div>
+              <div class="geomap__hint">Click para ver detalle del departamento</div>
+            </div>
+            <div class="geomap-panel">
+              <div class="geomap-pin-info" id="pinInfo">
+                <div class="geomap-pin-info__title">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C5.24 1 3 3.24 3 6c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z" fill="#c62828" opacity=".85"/><circle cx="8" cy="6" r="2" fill="white"/></svg>
+                  Georeferencia
+                </div>
+                <div class="geomap-pin-info__empty" id="pinEmpty">
+                  Hacé click en el mapa para marcar un punto de referencia. Se mostrarán las coordenadas y los clientes en el departamento más cercano.
+                </div>
+                <div id="pinData" style="display:none">
+                  <div class="geomap-pin-info__grid">
+                    <span class="geomap-pin-info__label">Latitud</span>
+                    <span class="geomap-pin-info__val" id="pinLat">—</span>
+                    <span class="geomap-pin-info__label">Longitud</span>
+                    <span class="geomap-pin-info__val" id="pinLng">—</span>
+                    <span class="geomap-pin-info__label">Provincia</span>
+                    <span class="geomap-pin-info__val geomap-pin-info__val--text" id="pinProv">—</span>
+                    <span class="geomap-pin-info__label">Departamento</span>
+                    <span class="geomap-pin-info__val geomap-pin-info__val--text" id="pinDept">—</span>
+                    <span class="geomap-pin-info__label">Clientes en zona</span>
+                    <span class="geomap-pin-info__val geomap-pin-info__val--text" id="pinClients">—</span>
+                  </div>
+                  <div class="geomap-pin-info__actions">
+                    <button class="btn btn--sec btn--sm" id="btnClearPin">Quitar pin</button>
+                    <button class="btn btn--pri btn--sm" id="btnFilterPin">Filtrar por zona</button>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:0 var(--s2)">
+                <div class="geomap-legend" id="geoLegend"></div>
+                <div class="geomap-tiles" id="geoTiles">
+                  <button class="geomap-tiles__btn is-active" data-tile="terrain">Terreno</button>
+                  <button class="geomap-tiles__btn" data-tile="satellite">Satélite</button>
+                  <button class="geomap-tiles__btn" data-tile="osm">Calles</button>
+                </div>
+                <p style="font-size:.72rem;color:var(--n400);margin-top:var(--s3);line-height:1.5">
+                  Los círculos marcan departamentos con clientes en cartera. El color refleja el semáforo agregado de la zona. Radio proporcional a exposición crediticia total.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Sidebar: donut + alerts -->
+        <div>
+          <div class="card" id="cardDonut">
+            <div class="card__title">
+              <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--g700)" stroke-width="2"/><path d="M8 2A6 6 0 0 1 14 8" stroke="var(--sig-up)" stroke-width="2"/></svg>
+              Distribución de Cartera
+            </div>
+            <div id="donutChart" class="donut-wrap"></div>
+          </div>
+          <div class="card" id="cardAlerts">
+            <div class="card__title">
+              <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1L1 14h14L8 1z" fill="none" stroke="var(--sig-alert)" stroke-width="1.5"/><line x1="8" y1="6" x2="8" y2="10" stroke="var(--sig-alert)" stroke-width="1.5"/><circle cx="8" cy="12" r=".8" fill="var(--sig-alert)"/></svg>
+              Alertas Priorizadas
+            </div>
+            <div id="alertList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Client table -->
+      <section class="card" style="margin-top:var(--s4)">
+        <div class="card__title" style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:var(--s2)">
+            <svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1" fill="none" stroke="var(--g700)" stroke-width="1.5"/><line x1="2" y1="7" x2="14" y2="7" stroke="var(--g700)" stroke-width="1"/><line x1="6" y1="7" x2="6" y2="13" stroke="var(--g700)" stroke-width="1"/></svg>
+            Cartera de Clientes
+          </span>
+          <span style="font-size:.78rem;font-weight:400;color:var(--n400)" id="clientCount"></span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="clientTable">
+            <thead>
+              <tr>
+                <th style="width:24px"></th>
+                <th>Razón Social</th>
+                <th>CUIT</th>
+                <th>Provincia</th>
+                <th>Departamento</th>
+                <th class="num">Superficie</th>
+                <th class="num">Crédito Tomado</th>
+                <th class="num">Cap. Productiva</th>
+                <th class="num">Utilización</th>
+                <th>Ejecutivo</th>
+              </tr>
+            </thead>
+            <tbody id="clientTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Insights -->
+      <div class="insights" id="dashInsights">
+        <div class="insights__hd">Resumen Ejecutivo de Cartera</div>
+        <div id="insightsList"></div>
+      </div>
+    </div>
+
+    <!-- ============= CLIENT DRILLDOWN VIEW ============= -->
+    <div id="viewDetail" style="display:none">
+      <div class="drill-back" id="btnBack">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Volver a cartera
+      </div>
+
+      <!-- Client header -->
+      <div class="card">
+        <div class="client-header" id="clientHeader"></div>
+        <div class="kpi-row" id="clientKpis" style="margin-bottom:0"></div>
+      </div>
+
+      <!-- Score + Semáforos -->
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:var(--s4);margin-bottom:0" id="scoreLayout">
+        <div class="card" id="scoreCardBox"></div>
+        <div class="card">
+          <div class="card__title">Semáforos de Seguimiento</div>
+          <div class="semaforo-row" id="semaforoGrid"></div>
+        </div>
+      </div>
+
+      <!-- Tabs: datos sensados / lotes / alertas -->
+      <section class="card" style="margin-top:var(--s4)">
+        <div class="tabs" id="detailTabBar">
+          <button class="tab-btn is-active" data-tab="sensado">Datos que Sensamos</button>
+          <button class="tab-btn" data-tab="lotes">Lotes / Polígonos</button>
+          <button class="tab-btn" data-tab="dalerts">Alertas del Cliente</button>
+          <button class="tab-btn" data-tab="bench">Benchmark Zonal</button>
+        </div>
+
+        <div class="tab-panel is-active" id="p-sensado">
+          <div id="sensedPanel"></div>
+        </div>
+        <div class="tab-panel" id="p-lotes">
+          <div id="lotesPanel"></div>
+        </div>
+        <div class="tab-panel" id="p-dalerts">
+          <div id="detailAlerts"></div>
+        </div>
+        <div class="tab-panel" id="p-bench">
+          <div id="benchPanel"></div>
+        </div>
+      </section>
+
+      <!-- Recomendación + insights del cliente -->
+      <div class="insights" id="clientInsights">
+        <div class="insights__hd">Recomendación de Seguimiento</div>
+        <div id="clientInsightsList"></div>
+      </div>
+
+      <button class="btn btn--sec btn--sm" id="btnMethodDetail" style="margin-top:var(--s4)">Ver metodología de seguimiento</button>
+    </div>
+  </main>
+
+  <!-- ================================================================
+       MODAL — Methodology
+       ================================================================ -->
+  <div class="modal-bg" id="modalMethod">
+    <div class="modal">
+      <div class="modal__hd">
+        <div class="modal__title">Metodología de Seguimiento de Cartera</div>
+        <button class="modal__close" id="btnCloseModal">&times;</button>
+      </div>
+      <p style="margin-bottom:12px;font-size:.9rem;color:var(--n700)">El seguimiento de cartera integra tres dimensiones de análisis:</p>
+      <div class="method-block"><strong>1. Señal agronómica satelital</strong><p>Se monitorean NDVI, estrés hídrico y condición vegetativa por lote mediante sensores Sentinel-2 con periodicidad quincenal. La señal se compara con el comportamiento esperado para el estadío fenológico del cultivo.</p></div>
+      <div class="method-block"><strong>2. Cruce crédito-capacidad productiva</strong><p>Se compara el crédito vigente del cliente con la capacidad productiva estimada de sus establecimientos. Una relación de utilización superior al 80% genera alerta naranja; superior al 100%, alerta roja.</p></div>
+      <div class="method-block"><strong>3. Benchmark zonal y sustentabilidad</strong><p>El rendimiento del establecimiento se contrasta con el benchmark del departamento. Se incorporan señales de sustentabilidad (continuidad agrícola, rotación, prácticas) para evaluar la viabilidad a mediano plazo.</p></div>
+      <div style="margin-top:16px;padding:12px;background:var(--n50);border-radius:6px;font-size:.8rem;color:var(--n500)">El seguimiento tiene carácter orientativo y complementa —no reemplaza— el análisis crediticio formal. Actualización: campaña 2025/26 — Corte marzo 2026.</div>
+    </div>
+  </div>
+
+  <footer class="ftr">Agro Intelligence Suite — Información de carácter orientativo — Última actualización: <span data-bind="date"></span> — Campaña 2025/26</footer>
+
+
+<!-- ====================================================================
+     JAVASCRIPT — PROTO 4: SEGUIMIENTO DE CARTERA
+     ====================================================================
+     GUÍA DE DEMO (5-7 min):
+     1. Mostrar dashboard general con KPIs de cartera
+     2. Señalar distribución del donut (verdes, amarillos, rojos)
+     3. Navegar el mapa Leaflet — click en departamentos con clientes
+     4. Mostrar alertas priorizadas en el sidebar
+     5. Filtrar por semáforo rojo → clientes con mayor riesgo
+     6. Click en un cliente con alerta roja → drilldown
+     7. En el detalle: score ring, semáforos, tab "Datos que Sensamos"
+     8. Tab "Lotes" con tabla detallada
+     9. Tab "Benchmark" con comparación zonal
+    10. Volver al dashboard y cerrar con los insights ejecutivos
+     ==================================================================== -->
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   1. DATA LAYER
+   ===================================================================== */
+
+const META = Object.freeze({
+  lastUpdate: '2026-03-14',
+  campaign: '2025/26',
+  demoMode: true  // true → auto-opens first red client
+});
+
+const CROPS = Object.freeze({
+  soja:    { label:'Soja',    color:'#4CAF50', price:320 },
+  maiz:    { label:'Maíz',    color:'#FFC107', price:185 },
+  trigo:   { label:'Trigo',   color:'#8D6E63', price:230 },
+  girasol: { label:'Girasol', color:'#FF9800', price:410 },
+  cebada:  { label:'Cebada',  color:'#9E9D24', price:210 }
+});
+
+const BENCHMARKS = Object.freeze({
+  'Pergamino':{ soja:38, maiz:95, trigo:42, girasol:24 },
+  'Junín':{ soja:36, maiz:90, trigo:40, girasol:22 },
+  'Marcos Juárez':{ soja:40, maiz:100, trigo:45, girasol:26 },
+  'Unión':{ soja:35, maiz:85, trigo:38, girasol:21 },
+  'General López':{ soja:37, maiz:92, trigo:41, girasol:23 },
+  'Constitución':{ soja:35, maiz:87, trigo:39, girasol:21 },
+  'Paraná':{ soja:32, maiz:78, trigo:35, girasol:19 },
+  'Quemú Quemú':{ soja:28, maiz:70, trigo:30, girasol:17 },
+  'Rojas':{ soja:37, maiz:93, trigo:41, girasol:23 },
+  'Río Cuarto':{ soja:30, maiz:75, trigo:33, girasol:18 },
+  'Caseros':{ soja:36, maiz:88, trigo:39, girasol:22 }
+});
+
+/* === Department centroids (for Leaflet map) === */
+const DEPTS = [
+  { name:'Pergamino',          prov:'Buenos Aires', lat:-33.89, lng:-60.57, ha:1880 },
+  { name:'Junín',              prov:'Buenos Aires', lat:-34.59, lng:-60.95, ha:1600 },
+  { name:'Rojas',              prov:'Buenos Aires', lat:-34.20, lng:-60.73, ha:870  },
+  { name:'Salto',              prov:'Buenos Aires', lat:-34.29, lng:-60.25, ha:0    },
+  { name:'Colón',              prov:'Buenos Aires', lat:-33.89, lng:-61.10, ha:0    },
+  { name:'Marcos Juárez',      prov:'Córdoba',      lat:-32.69, lng:-62.10, ha:950  },
+  { name:'Unión',              prov:'Córdoba',      lat:-32.87, lng:-62.90, ha:1100 },
+  { name:'Río Cuarto',         prov:'Córdoba',      lat:-33.13, lng:-64.35, ha:640  },
+  { name:'General San Martín', prov:'Córdoba',      lat:-31.53, lng:-63.25, ha:0    },
+  { name:'Tercero Arriba',     prov:'Córdoba',      lat:-32.18, lng:-63.65, ha:0    },
+  { name:'General López',      prov:'Santa Fe',     lat:-33.68, lng:-61.72, ha:2550 },
+  { name:'Caseros',            prov:'Santa Fe',     lat:-33.05, lng:-61.17, ha:0    },
+  { name:'Constitución',       prov:'Santa Fe',     lat:-33.23, lng:-60.50, ha:1400 },
+  { name:'Belgrano',           prov:'Santa Fe',     lat:-32.62, lng:-61.50, ha:0    },
+  { name:'Iriondo',            prov:'Santa Fe',     lat:-32.62, lng:-61.03, ha:0    },
+  { name:'Paraná',             prov:'Entre Ríos',   lat:-31.73, lng:-60.53, ha:520  },
+  { name:'Diamante',           prov:'Entre Ríos',   lat:-32.06, lng:-60.64, ha:0    },
+  { name:'Victoria',           prov:'Entre Ríos',   lat:-32.62, lng:-60.15, ha:0    },
+  { name:'Gualeguaychú',       prov:'Entre Ríos',   lat:-33.01, lng:-59.32, ha:0    },
+  { name:'Quemú Quemú',        prov:'La Pampa',     lat:-36.05, lng:-63.57, ha:3100 },
+  { name:'Maracó',             prov:'La Pampa',     lat:-35.67, lng:-63.75, ha:0    },
+  { name:'Catriló',            prov:'La Pampa',     lat:-36.37, lng:-63.42, ha:0    }
+];
+
+const PROV_COLORS = Object.freeze({
+  'Buenos Aires': { fill:'#2e7d4f', stroke:'#1a5c38' },
+  'Córdoba':      { fill:'#1565c0', stroke:'#0d47a1' },
+  'Santa Fe':     { fill:'#ef6c00', stroke:'#bf360c' },
+  'Entre Ríos':   { fill:'#7b1fa2', stroke:'#4a148c' },
+  'La Pampa':     { fill:'#c62828', stroke:'#8e0000' }
+});
+
+/* === CARTERA DE CLIENTES === */
+const CARTERA = [
+  {
+    id:'C01', name:'Agropecuaria Los Álamos S.A.', cuit:'20-30567891-4',
+    provincia:'Córdoba', dept:'Marcos Juárez', ejecutivo:'M. González',
+    segmento:'Corporativo', tipo:'Persona Jurídica', antiguedad:8,
+    creditoTomado:450000, capProductiva:620000,
+    sustentabilidad:'alta', practicas:'buenas', historialCrediticio:'bueno',
+    deudaActual:0.18, cobertura:0.82,
+    establecimientos:[{ name:'Los Álamos', dept:'Marcos Juárez', ha:2770 }],
+    lotes:[
+      { id:'L01', ha:800, crop:'soja', yH:41,yC:42,yP:43, ws:'low', cond:'excellent', ndvi:.78, rotation:true },
+      { id:'L02', ha:700, crop:'maiz', yH:98,yC:102,yP:105,ws:'low', cond:'excellent', ndvi:.81, rotation:true },
+      { id:'L03', ha:650, crop:'trigo',yH:44,yC:46,yP:45, ws:'low', cond:'good',      ndvi:.70, rotation:true },
+      { id:'L04', ha:620, crop:'soja', yH:39,yC:40,yP:41, ws:'low', cond:'good',      ndvi:.74, rotation:true }
+    ]
+  },
+  {
+    id:'C02', name:'Campos del Sur S.R.L.', cuit:'20-28934561-7',
+    provincia:'Buenos Aires', dept:'Pergamino', ejecutivo:'L. Fernández',
+    segmento:'PyME Agro', tipo:'Persona Jurídica', antiguedad:5,
+    creditoTomado:580000, capProductiva:420000,
+    sustentabilidad:'baja', practicas:'malas', historialCrediticio:'regular',
+    deudaActual:0.62, cobertura:0.38,
+    establecimientos:[{ name:'La Esperanza', dept:'Pergamino', ha:1600 }],
+    lotes:[
+      { id:'L05', ha:500, crop:'soja',  yH:35,yC:28,yP:30, ws:'high', cond:'poor', ndvi:.42, rotation:false },
+      { id:'L06', ha:480, crop:'maiz',  yH:88,yC:72,yP:78, ws:'high', cond:'fair', ndvi:.48, rotation:false },
+      { id:'L07', ha:420, crop:'soja',  yH:36,yC:30,yP:32, ws:'high', cond:'poor', ndvi:.44, rotation:false },
+      { id:'L08', ha:200, crop:'trigo', yH:39,yC:33,yP:35, ws:'moderate',cond:'fair',ndvi:.52,rotation:true }
+    ]
+  },
+  {
+    id:'C03', name:'González Hnos.', cuit:'20-24789456-3',
+    provincia:'Santa Fe', dept:'General López', ejecutivo:'R. Méndez',
+    segmento:'PyME Agro', tipo:'Sociedad de Hecho', antiguedad:3,
+    creditoTomado:720000, capProductiva:510000,
+    sustentabilidad:'baja', practicas:'regulares', historialCrediticio:'irregular',
+    deudaActual:0.71, cobertura:0.29,
+    establecimientos:[{ name:'La Rinconada', dept:'General López', ha:2200 }],
+    lotes:[
+      { id:'L09', ha:600, crop:'soja',    yH:33,yC:24,yP:26, ws:'high',    cond:'poor', ndvi:.36, rotation:false },
+      { id:'L10', ha:550, crop:'maiz',    yH:85,yC:62,yP:68, ws:'high',    cond:'poor', ndvi:.40, rotation:false },
+      { id:'L11', ha:500, crop:'soja',    yH:34,yC:26,yP:28, ws:'high',    cond:'poor', ndvi:.38, rotation:false },
+      { id:'L12', ha:350, crop:'girasol', yH:21,yC:15,yP:17, ws:'moderate',cond:'fair', ndvi:.45, rotation:true },
+      { id:'L13', ha:200, crop:'trigo',   yH:38,yC:30,yP:32, ws:'moderate',cond:'fair', ndvi:.48, rotation:true }
+    ]
+  },
+  {
+    id:'C04', name:'Estancia El Porvenir S.A.', cuit:'30-71234567-8',
+    provincia:'Buenos Aires', dept:'Junín', ejecutivo:'L. Fernández',
+    segmento:'Corporativo', tipo:'Persona Jurídica', antiguedad:12,
+    creditoTomado:380000, capProductiva:550000,
+    sustentabilidad:'alta', practicas:'buenas', historialCrediticio:'excelente',
+    deudaActual:0.15, cobertura:0.85,
+    establecimientos:[{ name:'El Porvenir', dept:'Junín', ha:1600 }],
+    lotes:[
+      { id:'L14', ha:500, crop:'soja',  yH:37,yC:38,yP:39, ws:'low', cond:'excellent', ndvi:.77, rotation:true },
+      { id:'L15', ha:450, crop:'maiz',  yH:92,yC:94,yP:96, ws:'low', cond:'excellent', ndvi:.80, rotation:true },
+      { id:'L16', ha:350, crop:'trigo', yH:41,yC:42,yP:43, ws:'low', cond:'good',      ndvi:.72, rotation:true },
+      { id:'L17', ha:300, crop:'soja',  yH:36,yC:37,yP:38, ws:'low', cond:'good',      ndvi:.74, rotation:true }
+    ]
+  },
+  {
+    id:'C05', name:'Agrícola Pampeana S.A.', cuit:'30-70456789-1',
+    provincia:'La Pampa', dept:'Quemú Quemú', ejecutivo:'C. Rossi',
+    segmento:'PyME Agro', tipo:'Persona Jurídica', antiguedad:6,
+    creditoTomado:310000, capProductiva:280000,
+    sustentabilidad:'media', practicas:'regulares', historialCrediticio:'bueno',
+    deudaActual:0.48, cobertura:0.52,
+    establecimientos:[{ name:'La Pampeana', dept:'Quemú Quemú', ha:3100 }],
+    lotes:[
+      { id:'L18', ha:900, crop:'soja',    yH:27,yC:22,yP:24, ws:'high',     cond:'poor', ndvi:.38, rotation:false },
+      { id:'L19', ha:800, crop:'maiz',    yH:68,yC:58,yP:62, ws:'high',     cond:'fair', ndvi:.44, rotation:false },
+      { id:'L20', ha:700, crop:'girasol', yH:16,yC:13,yP:15, ws:'moderate', cond:'fair', ndvi:.48, rotation:true },
+      { id:'L21', ha:400, crop:'soja',    yH:26,yC:23,yP:25, ws:'moderate', cond:'fair', ndvi:.46, rotation:true },
+      { id:'L22', ha:300, crop:'trigo',   yH:29,yC:26,yP:28, ws:'moderate', cond:'fair', ndvi:.50, rotation:true }
+    ]
+  },
+  {
+    id:'C06', name:'Agroservicios del Litoral S.R.L.', cuit:'20-33456789-2',
+    provincia:'Santa Fe', dept:'Constitución', ejecutivo:'R. Méndez',
+    segmento:'PyME Agro', tipo:'Persona Jurídica', antiguedad:4,
+    creditoTomado:290000, capProductiva:380000,
+    sustentabilidad:'media', practicas:'buenas', historialCrediticio:'bueno',
+    deudaActual:0.32, cobertura:0.68,
+    establecimientos:[{ name:'San Martín', dept:'Constitución', ha:1400 }],
+    lotes:[
+      { id:'L23', ha:500, crop:'soja',  yH:34,yC:32,yP:34, ws:'moderate', cond:'good', ndvi:.62, rotation:true },
+      { id:'L24', ha:450, crop:'maiz',  yH:86,yC:80,yP:84, ws:'moderate', cond:'good', ndvi:.60, rotation:true },
+      { id:'L25', ha:250, crop:'trigo', yH:38,yC:36,yP:37, ws:'low',      cond:'good', ndvi:.64, rotation:true },
+      { id:'L26', ha:200, crop:'soja',  yH:33,yC:30,yP:32, ws:'moderate', cond:'fair', ndvi:.56, rotation:false }
+    ]
+  },
+  {
+    id:'C07', name:'Hacienda Santa María S.A.', cuit:'30-71890123-5',
+    provincia:'Córdoba', dept:'Unión', ejecutivo:'M. González',
+    segmento:'Corporativo', tipo:'Persona Jurídica', antiguedad:10,
+    creditoTomado:520000, capProductiva:480000,
+    sustentabilidad:'media', practicas:'buenas', historialCrediticio:'bueno',
+    deudaActual:0.42, cobertura:0.58,
+    establecimientos:[{ name:'Santa María', dept:'Unión', ha:1100 }],
+    lotes:[
+      { id:'L27', ha:380, crop:'soja',  yH:35,yC:33,yP:34, ws:'moderate', cond:'good', ndvi:.63, rotation:true },
+      { id:'L28', ha:350, crop:'maiz',  yH:84,yC:80,yP:82, ws:'moderate', cond:'good', ndvi:.61, rotation:true },
+      { id:'L29', ha:200, crop:'trigo', yH:37,yC:35,yP:36, ws:'low',      cond:'good', ndvi:.66, rotation:true },
+      { id:'L30', ha:170, crop:'cebada',yH:33,yC:31,yP:33, ws:'low',      cond:'good', ndvi:.62, rotation:true }
+    ]
+  },
+  {
+    id:'C08', name:'Cereales del Norte S.A.', cuit:'30-70567234-9',
+    provincia:'Entre Ríos', dept:'Paraná', ejecutivo:'A. Díaz',
+    segmento:'PyME Agro', tipo:'Persona Jurídica', antiguedad:7,
+    creditoTomado:180000, capProductiva:260000,
+    sustentabilidad:'alta', practicas:'buenas', historialCrediticio:'excelente',
+    deudaActual:0.12, cobertura:0.88,
+    establecimientos:[{ name:'Don Eduardo', dept:'Paraná', ha:520 }],
+    lotes:[
+      { id:'L31', ha:280, crop:'soja',  yH:33,yC:34,yP:35, ws:'low', cond:'good', ndvi:.69, rotation:true },
+      { id:'L32', ha:240, crop:'trigo', yH:36,yC:37,yP:38, ws:'low', cond:'good', ndvi:.66, rotation:true }
+    ]
+  },
+  {
+    id:'C09', name:'Productora San Cayetano S.A.', cuit:'30-71456789-6',
+    provincia:'Buenos Aires', dept:'Rojas', ejecutivo:'L. Fernández',
+    segmento:'PyME Agro', tipo:'Persona Jurídica', antiguedad:9,
+    creditoTomado:340000, capProductiva:410000,
+    sustentabilidad:'alta', practicas:'buenas', historialCrediticio:'bueno',
+    deudaActual:0.22, cobertura:0.78,
+    establecimientos:[{ name:'San Cayetano', dept:'Rojas', ha:870 }],
+    lotes:[
+      { id:'L33', ha:480, crop:'soja',  yH:38,yC:39,yP:40, ws:'low', cond:'excellent', ndvi:.76, rotation:true },
+      { id:'L34', ha:390, crop:'maiz',  yH:94,yC:96,yP:98, ws:'low', cond:'excellent', ndvi:.79, rotation:true }
+    ]
+  },
+  {
+    id:'C10', name:'Agroganadera del Oeste S.R.L.', cuit:'20-29345678-0',
+    provincia:'Córdoba', dept:'Río Cuarto', ejecutivo:'M. González',
+    segmento:'PyME Agro', tipo:'Persona Jurídica', antiguedad:4,
+    creditoTomado:260000, capProductiva:210000,
+    sustentabilidad:'baja', practicas:'regulares', historialCrediticio:'regular',
+    deudaActual:0.55, cobertura:0.45,
+    establecimientos:[{ name:'El Trébol', dept:'Río Cuarto', ha:640 }],
+    lotes:[
+      { id:'L35', ha:350, crop:'soja',  yH:29,yC:24,yP:26, ws:'high',     cond:'poor', ndvi:.40, rotation:false },
+      { id:'L36', ha:290, crop:'maiz',  yH:72,yC:60,yP:65, ws:'high',     cond:'poor', ndvi:.42, rotation:false }
+    ]
+  }
+];
+
+
+/* =====================================================================
+   2. SCORING & BUSINESS LOGIC
+   ===================================================================== */
+
+function computeSemaforo(c) {
+  const util = c.creditoTomado / c.capProductiva;
+  const avgWs = c.lotes.reduce((s,l) => s + ({low:0,moderate:1,high:2}[l.ws]||0), 0) / c.lotes.length;
+  const avgCond = c.lotes.reduce((s,l) => s + ({excellent:4,good:3,fair:2,poor:1}[l.cond]||0), 0) / c.lotes.length;
+  const yieldDelta = c.lotes.reduce((s,l) => {
+    const bm = BENCHMARKS[c.dept]?.[l.crop] || l.yH;
+    return s + (l.yC - bm) / bm;
+  }, 0) / c.lotes.length;
+
+  let score = 50;
+  // Utilización
+  if (util <= 0.6) score += 15; else if (util <= 0.8) score += 5; else if (util <= 1) score -= 10; else score -= 25;
+  // Condición
+  score += (avgCond - 2.5) * 8;
+  // Estrés
+  score -= avgWs * 8;
+  // Benchmark
+  score += yieldDelta * 40;
+  // Sustentabilidad
+  score += c.sustentabilidad === 'alta' ? 8 : c.sustentabilidad === 'media' ? 2 : -5;
+  // Historial
+  score += ({excelente:10,bueno:5,regular:-3,irregular:-12}[c.historialCrediticio]||0);
+  // Prácticas
+  score += c.practicas === 'buenas' ? 5 : c.practicas === 'regulares' ? 0 : -8;
+
+  score = Math.min(100, Math.max(0, Math.round(score)));
+
+  let semaforo, label;
+  if (score >= 75) { semaforo = 'green'; label = 'Favorable'; }
+  else if (score >= 55) { semaforo = 'yellow'; label = 'En observación'; }
+  else if (score >= 35) { semaforo = 'orange'; label = 'Requiere atención'; }
+  else { semaforo = 'red'; label = 'Alerta'; }
+
+  // Individual semáforos
+  const rotPct = c.lotes.filter(l=>l.rotation).length / c.lotes.length;
+  const semaforos = {
+    utilizacion:     util <= 0.6 ? 'green' : util <= 0.85 ? 'yellow' : util <= 1 ? 'orange' : 'red',
+    condicion:       avgCond >= 3 ? 'green' : avgCond >= 2 ? 'yellow' : 'red',
+    estresHidrico:   avgWs < 0.7 ? 'green' : avgWs < 1.3 ? 'yellow' : 'red',
+    benchmark:       yieldDelta >= 0 ? 'green' : yieldDelta >= -0.1 ? 'yellow' : 'red',
+    sustentabilidad: c.sustentabilidad === 'alta' ? 'green' : c.sustentabilidad === 'media' ? 'yellow' : 'red'
+  };
+
+  // Alerts
+  const alerts = [];
+  if (util > 1) alerts.push({ level:'red', msg:`Crédito tomado (${FMT.usd(c.creditoTomado)}) supera capacidad productiva (${FMT.usd(c.capProductiva)})` });
+  else if (util > 0.85) alerts.push({ level:'orange', msg:`Utilización elevada: ${(util*100).toFixed(0)}% de la capacidad productiva comprometida` });
+  if (avgWs > 1.3) alerts.push({ level:'red', msg:'Estrés hídrico alto generalizado — rinde en riesgo' });
+  else if (avgWs > 0.7) alerts.push({ level:'yellow', msg:'Estrés hídrico moderado detectado en parte de los lotes' });
+  if (yieldDelta < -0.15) alerts.push({ level:'red', msg:`Rendimiento ${(yieldDelta*100).toFixed(0)}% por debajo del benchmark zonal` });
+  else if (yieldDelta < -0.05) alerts.push({ level:'orange', msg:`Rendimiento levemente inferior al benchmark zonal (${(yieldDelta*100).toFixed(0)}%)` });
+  if (c.historialCrediticio === 'irregular') alerts.push({ level:'orange', msg:'Historial crediticio irregular — revisar antecedentes' });
+  if (!rotPct || rotPct < 0.3) alerts.push({ level:'yellow', msg:'Baja rotación de cultivos — riesgo agronómico a mediano plazo' });
+  if (c.sustentabilidad === 'baja') alerts.push({ level:'yellow', msg:'Señal de sustentabilidad negativa' });
+  if (c.lotes.some(l=>l.cond==='poor') && c.lotes.some(l=>l.ndvi < 0.4)) alerts.push({ level:'red', msg:'Lotes con NDVI crítico (<0.40) — condición severa' });
+
+  return { score, semaforo, label, semaforos, alerts, util, avgWs, avgCond, yieldDelta, rotPct };
+}
+
+/* =====================================================================
+   3. FORMATTERS (must be defined before scoring computation)
+   ===================================================================== */
+const FMT = {
+  n:   v => v.toLocaleString('es-AR'),
+  ha:  v => v.toLocaleString('es-AR') + ' ha',
+  usd: v => 'USD ' + v.toLocaleString('es-AR'),
+  pct: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%',
+  date: d => {
+    const [y,m,dd] = d.split('-');
+    const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return `${parseInt(dd)} ${months[parseInt(m)-1]} ${y}`;
+  }
+};
+
+/* Augment clients with scoring */
+CARTERA.forEach(c => { c.scoring = computeSemaforo(c); });
+
+/* =====================================================================
+   4. GEO MAP (Leaflet)
+   ===================================================================== */
+let map, pinMarker, deptCircles = {};
+
+function initMap() {
+  if (!window.L) return;
+
+  map = L.map('geoMap', { center:[-33.5,-61.5], zoom:7, minZoom:5, maxZoom:15 });
+
+  const tiles = {
+    terrain:   L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom:17 }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:18 }),
+    osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 })
+  };
+  tiles.terrain.addTo(map);
+  let activeTile = 'terrain';
+
+  // Tile switcher
+  document.querySelectorAll('.geomap-tiles__btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.tile;
+      if (key === activeTile) return;
+      map.removeLayer(tiles[activeTile]);
+      tiles[key].addTo(map);
+      activeTile = key;
+      document.querySelectorAll('.geomap-tiles__btn').forEach(b => b.classList.toggle('is-active', b.dataset.tile === key));
+    });
+  });
+
+  // Aggregate semáforo per department
+  const deptAgg = {};
+  CARTERA.forEach(c => {
+    if (!deptAgg[c.dept]) deptAgg[c.dept] = { clients:[], totalCredit:0, worstSem:'green' };
+    deptAgg[c.dept].clients.push(c);
+    deptAgg[c.dept].totalCredit += c.creditoTomado;
+    const order = ['green','yellow','orange','red'];
+    if (order.indexOf(c.scoring.semaforo) > order.indexOf(deptAgg[c.dept].worstSem)) {
+      deptAgg[c.dept].worstSem = c.scoring.semaforo;
+    }
+  });
+
+  const semColors = {
+    green:  { fill:'#2e7d32', stroke:'#1a5c38' },
+    yellow: { fill:'#f9a825', stroke:'#f57f17' },
+    orange: { fill:'#ef6c00', stroke:'#bf360c' },
+    red:    { fill:'#c62828', stroke:'#8e0000' }
+  };
+
+  // Draw department circles
+  DEPTS.forEach(d => {
+    const agg = deptAgg[d.name];
+    const hasData = agg && agg.clients.length > 0;
+    const colors = hasData ? semColors[agg.worstSem] : { fill:'#999', stroke:'#666' };
+    const radius = hasData ? Math.max(6000, Math.min(25000, Math.sqrt(agg.totalCredit/100) * 200)) : 5000;
+
+    const circle = L.circle([d.lat, d.lng], {
+      radius,
+      fillColor: colors.fill,
+      color: colors.stroke,
+      fillOpacity: hasData ? 0.25 : 0.08,
+      weight: hasData ? 2 : 1,
+      dashArray: hasData ? null : '4,4'
+    }).addTo(map);
+
+    circle.on('mouseover', function() {
+      this.setStyle({ fillOpacity: hasData ? 0.45 : 0.15, weight: hasData ? 3 : 1.5 });
+      const popupContent = hasData
+        ? `<div class="dept-popup"><strong>${d.name}</strong><div class="dept-popup__prov">${d.prov}</div>${agg.clients.length} cliente${agg.clients.length>1?'s':''} · ${FMT.usd(agg.totalCredit)}</div>`
+        : `<div class="dept-popup"><strong>${d.name}</strong><div class="dept-popup__prov">${d.prov}</div>Sin clientes en cartera</div>`;
+      this.bindPopup(popupContent, { closeButton:false }).openPopup();
+    });
+    circle.on('mouseout', function() {
+      this.setStyle({ fillOpacity: hasData ? 0.25 : 0.08, weight: hasData ? 2 : 1 });
+      this.closePopup();
+    });
+    circle.on('click', () => {
+      if (hasData) {
+        document.getElementById('fProv').value = d.prov;
+        document.getElementById('fSearch').value = '';
+        document.getElementById('fSemaforo').value = '';
+        applyFilters();
+      }
+    });
+
+    // Label
+    L.marker([d.lat, d.lng], {
+      interactive: false,
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="font-size:10px;font-weight:${hasData?'700':'400'};color:${hasData?colors.stroke:'#888'};text-shadow:1px 1px 2px white,-1px -1px 2px white,1px -1px 2px white,-1px 1px 2px white;pointer-events:none;white-space:nowrap;text-align:center;transform:translate(-50%,-50%)">${d.name}</div>`,
+        iconSize: [0, 0]
+      })
+    }).addTo(map);
+
+    deptCircles[d.name] = circle;
+  });
+
+  // Legend (semáforo colors)
+  const legendEl = document.getElementById('geoLegend');
+  [['Verde — Favorable','#2e7d32'],['Amarillo — Observación','#f9a825'],['Naranja — Atención','#ef6c00'],['Rojo — Alerta','#c62828'],['Gris — Sin datos','#999']].forEach(([label,color]) => {
+    legendEl.innerHTML += `<div class="geomap-legend__item"><div class="geomap-legend__swatch" style="background:${color}"></div>${label}</div>`;
+  });
+
+  // Click-to-pin
+  const pinIcon = L.icon({
+    iconUrl: 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40"><defs><filter id="s" x="-20%" y="-10%" width="140%" height="130%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".3"/></filter></defs><path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#c62828" filter="url(#s)"/><circle cx="14" cy="13" r="5.5" fill="white"/><circle cx="14" cy="13" r="2.5" fill="#c62828"/></svg>`),
+    iconSize: [28,40], iconAnchor: [14,40], popupAnchor: [0,-35]
+  });
+
+  map.on('click', e => {
+    if (pinMarker) map.removeLayer(pinMarker);
+    pinMarker = L.marker(e.latlng, { icon: pinIcon, draggable: true }).addTo(map);
+    updatePinPanel(e.latlng);
+    pinMarker.on('dragend', () => updatePinPanel(pinMarker.getLatLng()));
+  });
+
+  document.getElementById('btnClearPin')?.addEventListener('click', () => {
+    if (pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
+    document.getElementById('pinEmpty').style.display = '';
+    document.getElementById('pinData').style.display = 'none';
+  });
+  document.getElementById('btnFilterPin')?.addEventListener('click', () => {
+    const dept = document.getElementById('pinDept').textContent;
+    const prov = document.getElementById('pinProv').textContent;
+    if (dept && dept !== '—') {
+      document.getElementById('fProv').value = prov;
+      applyFilters();
+    }
+  });
+}
+
+function updatePinPanel(latlng) {
+  const lat = latlng.lat, lng = latlng.lng;
+  document.getElementById('pinLat').textContent = lat.toFixed(6) + '°';
+  document.getElementById('pinLng').textContent = lng.toFixed(6) + '°';
+
+  let closest = null, minDist = Infinity;
+  DEPTS.forEach(d => {
+    const dist = Math.sqrt((d.lat-lat)**2 + (d.lng-lng)**2);
+    if (dist < minDist) { minDist = dist; closest = d; }
+  });
+
+  if (closest && minDist < 1.5) {
+    document.getElementById('pinProv').textContent = closest.prov;
+    document.getElementById('pinDept').textContent = closest.name;
+    const deptClients = CARTERA.filter(c => c.dept === closest.name);
+    document.getElementById('pinClients').textContent = deptClients.length > 0
+      ? `${deptClients.length} (${deptClients.map(c=>c.name.split(' ')[0]).join(', ')})`
+      : 'Ninguno';
+  } else {
+    document.getElementById('pinProv').textContent = 'Fuera de cobertura';
+    document.getElementById('pinDept').textContent = '—';
+    document.getElementById('pinClients').textContent = '—';
+  }
+
+  document.getElementById('pinEmpty').style.display = 'none';
+  document.getElementById('pinData').style.display = '';
+}
+
+function highlightDept(deptName) {
+  const d = DEPTS.find(x => x.name === deptName);
+  if (d && map) {
+    map.flyTo([d.lat, d.lng], 9, { duration: 0.8 });
+    Object.entries(deptCircles).forEach(([name, circle]) => {
+      if (name === deptName) circle.setStyle({ fillOpacity: 0.45, weight: 3 });
+      else circle.setStyle({ fillOpacity: circle.options.dashArray ? 0.08 : 0.25, weight: circle.options.dashArray ? 1 : 2 });
+    });
+  }
+}
+
+/* =====================================================================
+   5. DASHBOARD RENDERERS
+   ===================================================================== */
+
+function renderDashKPIs(clients) {
+  const totalClients = clients.length;
+  const totalHa = clients.reduce((s,c) => s + c.establecimientos.reduce((ss,e) => ss+e.ha, 0), 0);
+  const totalCredit = clients.reduce((s,c) => s + c.creditoTomado, 0);
+  const totalCap = clients.reduce((s,c) => s + c.capProductiva, 0);
+  const alertCount = clients.filter(c => c.scoring.semaforo === 'red' || c.scoring.semaforo === 'orange').length;
+
+  document.getElementById('dashKpis').innerHTML = `
+    <div class="kpi">
+      <div class="kpi__label">Clientes en Cartera</div>
+      <div class="kpi__value">${totalClients}</div>
+      <div class="kpi__sub">${FMT.ha(totalHa)} monitoreadas</div>
+    </div>
+    <div class="kpi kpi--accent">
+      <div class="kpi__label">Exposición Crediticia Total</div>
+      <div class="kpi__value">${FMT.usd(totalCredit)}</div>
+      <div class="kpi__sub">Cap. productiva: ${FMT.usd(totalCap)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi__label">Utilización Promedio</div>
+      <div class="kpi__value">${totalCap > 0 ? (totalCredit/totalCap*100).toFixed(0) : 0}%</div>
+      <div class="kpi__delta ${totalCredit/totalCap<=0.8?'kpi__delta--up':'kpi__delta--down'}">${totalCredit/totalCap<=0.8?'Dentro de rango':'Sobre umbral recomendado'}</div>
+    </div>
+    <div class="kpi ${alertCount>0?'kpi--alert':''}">
+      <div class="kpi__label">Clientes con Alerta</div>
+      <div class="kpi__value">${alertCount}</div>
+      <div class="kpi__sub">${alertCount>0?(alertCount/totalClients*100).toFixed(0)+'% de la cartera':'Sin alertas activas'}</div>
+    </div>`;
+}
+
+function renderDonut(clients) {
+  const counts = { green:0, yellow:0, orange:0, red:0, gray:0 };
+  clients.forEach(c => { counts[c.scoring.semaforo] = (counts[c.scoring.semaforo]||0) + 1; });
+  const total = clients.length;
+  const colors = { green:'#2e7d32', yellow:'#f9a825', orange:'#ef6c00', red:'#c62828', gray:'#9e9e9e' };
+  const labels = { green:'Verde', yellow:'Amarillo', orange:'Naranja', red:'Rojo', gray:'Gris' };
+
+  let paths = '', startAngle = -90;
+  const entries = Object.entries(counts).filter(([,v]) => v > 0);
+
+  if (entries.length === 0) {
+    document.getElementById('donutChart').innerHTML = '<div class="empty"><div class="empty__icon">○</div><div class="empty__text">Sin datos para mostrar</div></div>';
+    return;
+  }
+
+  entries.forEach(([key, val]) => {
+    const pct = val / total;
+    const angle = pct * 360;
+    const endAngle = startAngle + angle;
+    const largeArc = angle > 180 ? 1 : 0;
+    const r = 60, cx = 80, cy = 80;
+    const x1 = cx + r * Math.cos(startAngle * Math.PI / 180);
+    const y1 = cy + r * Math.sin(startAngle * Math.PI / 180);
+    const x2 = cx + r * Math.cos(endAngle * Math.PI / 180);
+    const y2 = cy + r * Math.sin(endAngle * Math.PI / 180);
+    paths += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z" fill="${colors[key]}" opacity=".85">
+      <title>${labels[key]}: ${val} (${(pct*100).toFixed(0)}%)</title></path>`;
+    startAngle = endAngle;
+  });
+
+  let legendHtml = entries.map(([key,val]) =>
+    `<div style="display:flex;align-items:center;gap:6px;font-size:.78rem"><div style="width:10px;height:10px;border-radius:50%;background:${colors[key]}"></div>${labels[key]}: ${val}</div>`
+  ).join('');
+
+  document.getElementById('donutChart').innerHTML = `
+    <svg viewBox="0 0 160 160" width="140" height="140">
+      <circle cx="80" cy="80" r="35" fill="var(--white)"/>
+      ${paths}
+      <circle cx="80" cy="80" r="35" fill="var(--white)"/>
+      <text x="80" y="76" text-anchor="middle" font-size="18" font-weight="700" fill="var(--n900)">${total}</text>
+      <text x="80" y="92" text-anchor="middle" font-size="9" fill="var(--n500)">clientes</text>
+    </svg>
+    <div style="display:flex;flex-direction:column;gap:6px">${legendHtml}</div>`;
+}
+
+function renderAlerts(clients) {
+  const allAlerts = [];
+  clients.forEach(c => {
+    c.scoring.alerts.forEach(a => {
+      allAlerts.push({ ...a, clientId: c.id, clientName: c.name, dept: c.dept });
+    });
+  });
+  allAlerts.sort((a,b) => {
+    const order = { red:0, orange:1, yellow:2 };
+    return (order[a.level]||3) - (order[b.level]||3);
+  });
+
+  if (allAlerts.length === 0) {
+    document.getElementById('alertList').innerHTML = '<div style="padding:var(--s4);font-size:.85rem;color:var(--n400);text-align:center">Sin alertas activas en la cartera.</div>';
+    return;
+  }
+
+  const icons = { red:'!', orange:'!', yellow:'⚠' };
+  document.getElementById('alertList').innerHTML = allAlerts.slice(0,8).map(a => `
+    <div class="alert-item" data-client="${a.clientId}">
+      <div class="alert-item__icon alert-item__icon--${a.level}">${icons[a.level]}</div>
+      <div class="alert-item__body">
+        <div class="alert-item__title">${a.clientName}</div>
+        <div class="alert-item__desc">${a.msg}</div>
+        <div class="alert-item__time">${a.dept} · ${FMT.date(META.lastUpdate)}</div>
+      </div>
+    </div>`).join('');
+
+  // Click on alert → drilldown
+  document.querySelectorAll('.alert-item').forEach(el => {
+    el.addEventListener('click', () => showClientDetail(el.dataset.client));
+  });
+}
+
+function renderClientTable(clients) {
+  document.getElementById('clientCount').textContent = `${clients.length} cliente${clients.length !== 1 ? 's' : ''}`;
+
+  document.getElementById('clientTbody').innerHTML = clients.sort((a,b) => a.scoring.score - b.scoring.score).map(c => {
+    const util = (c.scoring.util * 100).toFixed(0);
+    const utilCls = c.scoring.semaforos.utilizacion === 'green' ? 'green' : c.scoring.semaforos.utilizacion === 'yellow' ? 'yellow' : 'red';
+    const totalHa = c.establecimientos.reduce((s,e) => s+e.ha, 0);
+    return `<tr data-client="${c.id}">
+      <td><div class="sem-dot sem-dot--${c.scoring.semaforo}"></div></td>
+      <td style="font-weight:600">${c.name}</td>
+      <td style="font-size:.78rem;color:var(--n500)">${c.cuit}</td>
+      <td>${c.provincia}</td>
+      <td>${c.dept}</td>
+      <td class="num">${FMT.n(totalHa)}</td>
+      <td class="num">${FMT.usd(c.creditoTomado)}</td>
+      <td class="num">${FMT.usd(c.capProductiva)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="util-bar" style="width:80px"><div class="util-bar__fill util-bar__fill--${utilCls}" style="width:${Math.min(100,util)}%"></div></div>
+          <span class="num" style="font-size:.78rem">${util}%</span>
+        </div>
+      </td>
+      <td style="font-size:.78rem;color:var(--n500)">${c.ejecutivo}</td>
+    </tr>`;
+  }).join('');
+
+  // Click → drilldown
+  document.querySelectorAll('#clientTbody tr').forEach(tr => {
+    tr.addEventListener('click', () => showClientDetail(tr.dataset.client));
+  });
+}
+
+function renderInsights(clients) {
+  const redCount = clients.filter(c => c.scoring.semaforo === 'red').length;
+  const orangeCount = clients.filter(c => c.scoring.semaforo === 'orange').length;
+  const totalCredit = clients.reduce((s,c) => s + c.creditoTomado, 0);
+  const totalCap = clients.reduce((s,c) => s + c.capProductiva, 0);
+
+  // Find dept with most alerts
+  const deptAlerts = {};
+  clients.forEach(c => {
+    if (c.scoring.alerts.length > 0) deptAlerts[c.dept] = (deptAlerts[c.dept]||0) + c.scoring.alerts.length;
+  });
+  const worstDept = Object.entries(deptAlerts).sort((a,b)=>b[1]-a[1])[0];
+
+  const sustPositive = clients.filter(c => c.sustentabilidad === 'alta').length;
+  const greenClients = clients.filter(c => c.scoring.semaforo === 'green');
+  const greenAvgYield = greenClients.length > 0 ? greenClients.reduce((s,c)=>s+c.scoring.yieldDelta,0)/greenClients.length : 0;
+
+  const items = [];
+  if (redCount > 0) items.push(`El ${(redCount/clients.length*100).toFixed(0)}% de la cartera (${redCount} cliente${redCount>1?'s':''}) presenta exposición superior a la capacidad productiva estimada o señales agronómicas críticas.`);
+  if (orangeCount > 0) items.push(`${orangeCount} cliente${orangeCount>1?'s':''} requiere${orangeCount===1?'':'n'} atención prioritaria por indicadores de estrés o desempeño debajo del benchmark.`);
+  if (worstDept) items.push(`La mayor concentración de alertas se ubica en ${worstDept[0]} (${worstDept[1]} alertas).`);
+  if (sustPositive > 0) items.push(`La cartera con señal de sustentabilidad positiva (${sustPositive} cliente${sustPositive>1?'s':''}) muestra menor dispersión productiva y mejor cobertura.`);
+  if (greenAvgYield > 0) items.push(`Los clientes en estado favorable muestran rendimiento ${(greenAvgYield*100).toFixed(1)}% por encima del benchmark zonal promedio.`);
+  items.push(`Utilización agregada de la cartera: ${(totalCredit/totalCap*100).toFixed(0)}% — ${totalCredit/totalCap<=0.8?'dentro del rango recomendado.':'sobre el umbral recomendado, requiere monitoreo activo.'}`);
+
+  document.getElementById('insightsList').innerHTML = items.map(i => `<div class="insights__item">${i}</div>`).join('');
+}
+
+
+/* =====================================================================
+   6. CLIENT DRILLDOWN RENDERERS
+   ===================================================================== */
+
+function showClientDetail(clientId) {
+  const c = CARTERA.find(x => x.id === clientId);
+  if (!c) return;
+
+  document.getElementById('viewDashboard').style.display = 'none';
+  document.getElementById('viewDetail').style.display = '';
+  document.getElementById('crumbTrail').innerHTML = '<a href="#" id="crumbBack">Seguimiento de Cartera</a> <span style="margin:0 4px">›</span> ' + c.name;
+  document.getElementById('crumbBack').addEventListener('click', e => { e.preventDefault(); goBack(); });
+  window.scrollTo(0, 0);
+
+  renderClientHeader(c);
+  renderClientKPIs(c);
+  renderScoreCard(c);
+  renderSemaforos(c);
+  renderSensedPanel(c);
+  renderLotesPanel(c);
+  renderDetailAlerts(c);
+  renderBenchPanel(c);
+  renderClientInsights(c);
+
+  // Highlight on map
+  highlightDept(c.dept);
+}
+
+function goBack() {
+  document.getElementById('viewDashboard').style.display = '';
+  document.getElementById('viewDetail').style.display = 'none';
+  document.getElementById('crumbTrail').textContent = 'Seguimiento de Cartera';
+  // Reset tab
+  document.querySelectorAll('#detailTabBar .tab-btn').forEach((b,i) => b.classList.toggle('is-active', i===0));
+  ['sensado','lotes','dalerts','bench'].forEach((t,i) => {
+    document.getElementById('p-'+t).classList.toggle('is-active', i===0);
+  });
+  if (map) map.flyTo([-33.5,-61.5], 7, { duration: 0.5 });
+}
+
+function renderClientHeader(c) {
+  const totalHa = c.establecimientos.reduce((s,e)=>s+e.ha,0);
+  document.getElementById('clientHeader').innerHTML = `
+    <div class="client-avatar">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h8M8 14h5" stroke="currentColor" stroke-width="1.2"/></svg>
+    </div>
+    <div>
+      <div class="client-name">${c.name}</div>
+      <div class="client-meta">CUIT ${c.cuit} · ${c.tipo} · ${c.dept}, ${c.provincia} · Antigüedad: ${c.antiguedad} años</div>
+      <div class="client-badges">
+        <span class="badge badge--blue">${c.segmento}</span>
+        <span class="badge badge--gray">${c.establecimientos.length} establecimiento${c.establecimientos.length>1?'s':''}</span>
+        <span class="badge badge--gray">${c.lotes.length} lotes</span>
+        <span class="badge badge--gray">${FMT.ha(totalHa)}</span>
+        <span class="badge badge--${c.scoring.semaforo === 'green'?'up':c.scoring.semaforo==='yellow'?'warn':c.scoring.semaforo==='orange'?'alert':'down'}">${c.scoring.label}</span>
+      </div>
+    </div>`;
+}
+
+function renderClientKPIs(c) {
+  const totalHa = c.establecimientos.reduce((s,e)=>s+e.ha,0);
+  const valActual = c.lotes.reduce((s,l) => s + l.ha * l.yC * (CROPS[l.crop]?.price||0)/10, 0);
+  const util = (c.scoring.util * 100).toFixed(0);
+  const avgNdvi = (c.lotes.reduce((s,l)=>s+l.ndvi,0)/c.lotes.length).toFixed(2);
+
+  document.getElementById('clientKpis').innerHTML = `
+    <div class="kpi"><div class="kpi__label">Superficie Total</div><div class="kpi__value">${FMT.ha(totalHa)}</div><div class="kpi__sub">${c.establecimientos.map(e=>e.name).join(', ')}</div></div>
+    <div class="kpi"><div class="kpi__label">Crédito Tomado</div><div class="kpi__value">${FMT.usd(c.creditoTomado)}</div><div class="kpi__sub">Utilización: ${util}%</div></div>
+    <div class="kpi"><div class="kpi__label">Valor Productivo Estimado</div><div class="kpi__value">${FMT.usd(Math.round(valActual))}</div><div class="kpi__sub">Cap. productiva: ${FMT.usd(c.capProductiva)}</div></div>
+    <div class="kpi kpi--accent"><div class="kpi__label">NDVI Promedio</div><div class="kpi__value">${avgNdvi}</div><div class="kpi__sub">${avgNdvi>=0.65?'Señal vegetativa saludable':avgNdvi>=0.5?'Señal moderada':'Señal debilitada'}</div></div>`;
+}
+
+function renderScoreCard(c) {
+  const s = c.scoring;
+  const strokeColor = s.semaforo==='green'?'var(--sig-up)':s.semaforo==='yellow'?'var(--sig-warn)':s.semaforo==='orange'?'var(--sig-alert)':'var(--sig-down)';
+  const circ = 2 * Math.PI * 50;
+  const offset = circ - (s.score/100) * circ;
+
+  document.getElementById('scoreCardBox').innerHTML = `
+    <div style="text-align:center">
+      <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--n500);margin-bottom:var(--s2)">Score de Seguimiento</div>
+      <svg viewBox="0 0 120 120" width="130" height="130">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--n200)" stroke-width="10"/>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="${strokeColor}" stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="${circ}" stroke-dashoffset="${offset}" style="transition:stroke-dashoffset 1s ease"/>
+      </svg>
+      <div style="font-size:2rem;font-weight:700;color:var(--n900);margin-top:-70px;position:relative">${s.score}</div>
+      <div style="font-size:.85rem;font-weight:600;color:${strokeColor};margin-top:32px">${s.label}</div>
+      <div style="font-size:.78rem;color:var(--n500);margin-top:var(--s1);line-height:1.5">${
+        s.semaforo==='green'?'Indicadores dentro de rango. Sin alertas activas.':
+        s.semaforo==='yellow'?'Algunos indicadores requieren seguimiento cercano.':
+        s.semaforo==='orange'?'Señales de deterioro detectadas. Revisar exposición.':
+        'Alerta activa. Recomendación de revisión inmediata.'
+      }</div>
+    </div>`;
+}
+
+function renderSemaforos(c) {
+  const sem = c.scoring.semaforos;
+  const labels = {
+    utilizacion:'Utilización crediticia',
+    condicion:'Condición agronómica',
+    estresHidrico:'Estrés hídrico',
+    benchmark:'Benchmark zonal',
+    sustentabilidad:'Sustentabilidad'
+  };
+  const valueLabels = { green:'Favorable', yellow:'Atención', orange:'Alerta moderada', red:'Crítico' };
+  const valueColors = { green:'var(--sig-up)', yellow:'#f57f17', orange:'var(--sig-alert)', red:'var(--sig-down)' };
+
+  document.getElementById('semaforoGrid').innerHTML = Object.entries(sem).map(([k,v]) => `
+    <div class="semaforo-card">
+      <div class="semaforo-lights">
+        <div class="semaforo-light semaforo-light--r${v==='red'?' lit':''}"></div>
+        <div class="semaforo-light semaforo-light--y${v==='yellow'||v==='orange'?' lit':''}"></div>
+        <div class="semaforo-light semaforo-light--g${v==='green'?' lit':''}"></div>
+      </div>
+      <div class="semaforo-info">
+        <div class="semaforo-info__label">${labels[k]}</div>
+        <div class="semaforo-info__value" style="color:${valueColors[v]}">${valueLabels[v]}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderSensedPanel(c) {
+  const totalHa = c.establecimientos.reduce((s,e)=>s+e.ha,0);
+  const avgNdvi = (c.lotes.reduce((s,l)=>s+l.ndvi,0)/c.lotes.length).toFixed(2);
+  const avgYieldDelta = c.scoring.yieldDelta;
+  const cropMap = {};
+  c.lotes.forEach(l => { cropMap[l.crop] = (cropMap[l.crop]||0) + l.ha; });
+  const dominante = Object.entries(cropMap).sort((a,b)=>b[1]-a[1])[0];
+  const avgWs = c.scoring.avgWs;
+  const wsLabel = avgWs < 0.7 ? 'Bajo' : avgWs < 1.3 ? 'Moderado' : 'Alto';
+  const rindeEst = c.lotes.reduce((s,l) => s + l.yC * l.ha, 0) / totalHa;
+
+  document.getElementById('sensedPanel').innerHTML = `
+    <div style="margin-bottom:var(--s4)">
+      <p style="font-size:.85rem;color:var(--n600);line-height:1.6;margin-bottom:var(--s4)">Información sensada a partir de señales satelitales Sentinel-2 y cruce con datos de cartera. Última actualización: <strong>${FMT.date(META.lastUpdate)}</strong>.</p>
+    </div>
+    <div class="sensed-grid">
+      <div class="sensed-item"><div class="sensed-item__label">Superficie activa</div><div class="sensed-item__value">${FMT.ha(totalHa)}</div><div class="sensed-item__note">${c.establecimientos.length} establecimiento${c.establecimientos.length>1?'s':''}</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Cultivo actual</div><div class="sensed-item__value">${CROPS[dominante[0]]?.label||dominante[0]}</div><div class="sensed-item__note">${(dominante[1]/totalHa*100).toFixed(0)}% de la superficie</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Rinde estimado prom.</div><div class="sensed-item__value">${rindeEst.toFixed(1)} qq/ha</div><div class="sensed-item__note">${avgYieldDelta>=0?'+':''}${(avgYieldDelta*100).toFixed(1)}% vs benchmark</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">NDVI promedio</div><div class="sensed-item__value">${avgNdvi}</div><div class="sensed-item__note">${avgNdvi>=0.65?'Saludable':avgNdvi>=0.5?'Moderado':'Debilitado'}</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Estrés hídrico</div><div class="sensed-item__value">${wsLabel}</div><div class="sensed-item__note">${wsLabel==='Bajo'?'Sin impacto esperado':wsLabel==='Moderado'?'Impacto moderado posible':'Impacto significativo probable'}</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Comportamiento hist.</div><div class="sensed-item__value">${c.scoring.avgCond>=3?'Estable':c.scoring.avgCond>=2?'Variable':'Deterioro'}</div><div class="sensed-item__note">${c.antiguedad} campañas de actividad</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Benchmark zonal</div><div class="sensed-item__value">${avgYieldDelta>=0?'Sobre':'Bajo'} benchmark</div><div class="sensed-item__note">${c.dept} · ${c.provincia}</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Rotación</div><div class="sensed-item__value">${(c.scoring.rotPct*100).toFixed(0)}%</div><div class="sensed-item__note">${c.scoring.rotPct>=0.7?'Rotación adecuada':c.scoring.rotPct>=0.4?'Rotación parcial':'Monocultivo predominante'}</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Sustentabilidad</div><div class="sensed-item__value">${c.sustentabilidad.charAt(0).toUpperCase()+c.sustentabilidad.slice(1)}</div><div class="sensed-item__note">${c.sustentabilidad==='alta'?'Señal positiva':c.sustentabilidad==='media'?'Señal neutra':'Señal negativa'}</div></div>
+      <div class="sensed-item"><div class="sensed-item__label">Último update</div><div class="sensed-item__value">${FMT.date(META.lastUpdate)}</div><div class="sensed-item__note">Fuente: Sentinel-2</div></div>
+    </div>`;
+}
+
+function renderLotesPanel(c) {
+  const condLabel = { excellent:'Excelente', good:'Buena', fair:'Regular', poor:'Mala' };
+  const wsLabel = { low:'Bajo', moderate:'Moderado', high:'Alto' };
+  const condBadge = { excellent:'up', good:'up', fair:'warn', poor:'down' };
+  const wsBadge = { low:'up', moderate:'warn', high:'down' };
+
+  document.getElementById('lotesPanel').innerHTML = `
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th>Lote</th><th>Cultivo</th><th class="num">Superficie</th>
+          <th class="num">Rinde Est.</th><th class="num">Rinde Hist.</th>
+          <th class="num">NDVI</th><th>Estrés</th><th>Condición</th><th>Rotación</th>
+        </tr></thead>
+        <tbody>${c.lotes.map(l => `<tr>
+          <td style="font-weight:600">${l.id}</td>
+          <td><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:${CROPS[l.crop]?.color||'#999'}"></span>${CROPS[l.crop]?.label||l.crop}</span></td>
+          <td class="num">${FMT.n(l.ha)}</td>
+          <td class="num">${l.yC} qq/ha</td>
+          <td class="num">${l.yH} qq/ha</td>
+          <td class="num">${l.ndvi.toFixed(2)}</td>
+          <td><span class="badge badge--${wsBadge[l.ws]}">${wsLabel[l.ws]}</span></td>
+          <td><span class="badge badge--${condBadge[l.cond]}">${condLabel[l.cond]}</span></td>
+          <td>${l.rotation?'<span style="color:var(--sig-up)">Sí</span>':'<span style="color:var(--sig-down)">No</span>'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderDetailAlerts(c) {
+  if (c.scoring.alerts.length === 0) {
+    document.getElementById('detailAlerts').innerHTML = '<div style="padding:var(--s5);text-align:center;color:var(--n400);font-size:.85rem">Sin alertas activas para este cliente.</div>';
+    return;
+  }
+  const icons = { red:'!', orange:'!', yellow:'⚠' };
+  document.getElementById('detailAlerts').innerHTML = c.scoring.alerts.map(a => `
+    <div class="alert-item" style="cursor:default">
+      <div class="alert-item__icon alert-item__icon--${a.level}">${icons[a.level]}</div>
+      <div class="alert-item__body">
+        <div class="alert-item__desc" style="font-size:.85rem;color:var(--n700)">${a.msg}</div>
+        <div class="alert-item__time">${FMT.date(META.lastUpdate)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderBenchPanel(c) {
+  const bm = BENCHMARKS[c.dept] || {};
+  const cropMap = {};
+  c.lotes.forEach(l => {
+    if (!cropMap[l.crop]) cropMap[l.crop] = { totalY: 0, totalHa: 0 };
+    cropMap[l.crop].totalY += l.yC * l.ha;
+    cropMap[l.crop].totalHa += l.ha;
+  });
+
+  let rows = '';
+  Object.entries(cropMap).forEach(([crop, data]) => {
+    const avg = data.totalY / data.totalHa;
+    const bmVal = bm[crop];
+    if (!bmVal) return;
+    const delta = ((avg - bmVal) / bmVal * 100);
+    const barWidth = Math.min(100, avg / bmVal * 100);
+    rows += `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:${CROPS[crop]?.color||'#999'}"></span>${CROPS[crop]?.label||crop}</span></td>
+      <td class="num">${avg.toFixed(1)}</td>
+      <td class="num">${bmVal}</td>
+      <td class="num"><span class="var ${delta>=0?'var--up':'var--down'}">${delta>=0?'+':''}${delta.toFixed(1)}%</span></td>
+      <td style="width:120px"><div class="util-bar"><div class="util-bar__fill util-bar__fill--${delta>=0?'green':delta>=-10?'yellow':'red'}" style="width:${barWidth}%"></div></div></td>
+    </tr>`;
+  });
+
+  document.getElementById('benchPanel').innerHTML = `
+    <p style="font-size:.85rem;color:var(--n600);margin-bottom:var(--s4)">Rendimiento estimado del establecimiento vs benchmark zonal del departamento <strong>${c.dept}</strong>, ${c.provincia}.</p>
+    <table class="tbl">
+      <thead><tr><th>Cultivo</th><th class="num">Rinde Est.</th><th class="num">Benchmark</th><th class="num">Brecha</th><th>Comparación</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderClientInsights(c) {
+  const s = c.scoring;
+  const items = [];
+
+  if (s.semaforo === 'green') {
+    items.push('El cliente presenta indicadores agronómicos y crediticios dentro de los rangos esperados. No se identifican señales de deterioro.');
+    if (s.yieldDelta > 0) items.push(`El rendimiento estimado se ubica ${(s.yieldDelta*100).toFixed(1)}% por encima del benchmark zonal — desempeño sólido.`);
+  } else if (s.semaforo === 'yellow') {
+    items.push('Algunos indicadores presentan señales de atención que justifican seguimiento más cercano.');
+  } else if (s.semaforo === 'orange') {
+    items.push('Se detectan señales de deterioro que requieren revisión de la exposición crediticia.');
+  } else {
+    items.push('El perfil presenta señales críticas que requieren acción inmediata del equipo de riesgo.');
+  }
+
+  if (s.util > 1) items.push(`La relación crédito/capacidad productiva supera el 100% (${(s.util*100).toFixed(0)}%), generando una exposición excedida.`);
+  else if (s.util > 0.85) items.push(`La utilización crediticia es elevada (${(s.util*100).toFixed(0)}%). Considerar revisión de límites.`);
+
+  if (s.avgWs > 1.3) items.push('El estrés hídrico generalizado afecta el rinde esperado. La señal futura requiere revisión.');
+  else if (s.avgWs > 0.7) items.push('Se observa estrés hídrico moderado que podría impactar la producción si persiste.');
+
+  if (c.sustentabilidad === 'alta') items.push('Las prácticas productivas y la continuidad del uso agrícola mejoran la lectura de sustentabilidad.');
+  else if (c.sustentabilidad === 'baja') items.push('La señal de sustentabilidad es negativa — puede afectar elegibilidad en líneas con criterios ESG.');
+
+  if (s.rotPct < 0.3) items.push('La baja rotación de cultivos incrementa el riesgo agronómico a mediano plazo.');
+
+  document.getElementById('clientInsightsList').innerHTML = items.map(i => `<div class="insights__item">${i}</div>`).join('');
+}
+
+
+/* =====================================================================
+   7. FILTER LOGIC
+   ===================================================================== */
+
+function applyFilters() {
+  const search = document.getElementById('fSearch').value.toLowerCase().trim();
+  const prov = document.getElementById('fProv').value;
+  const sem = document.getElementById('fSemaforo').value;
+  const ejec = document.getElementById('fEjecutivo').value;
+
+  let filtered = CARTERA.filter(c => {
+    if (search && !c.name.toLowerCase().includes(search) && !c.cuit.includes(search)) return false;
+    if (prov && c.provincia !== prov) return false;
+    if (sem && c.scoring.semaforo !== sem) return false;
+    if (ejec && c.ejecutivo !== ejec) return false;
+    return true;
+  });
+
+  renderDashKPIs(filtered);
+  renderDonut(filtered);
+  renderAlerts(filtered);
+  renderClientTable(filtered);
+  renderInsights(filtered);
+}
+
+
+/* =====================================================================
+   8. INITIALIZATION
+   ===================================================================== */
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Dates
+  document.querySelectorAll('[data-bind="date"]').forEach(el => { el.textContent = FMT.date(META.lastUpdate); });
+
+  // Populate filter dropdowns
+  const provs = [...new Set(CARTERA.map(c => c.provincia))].sort();
+  const provSel = document.getElementById('fProv');
+  provs.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; provSel.appendChild(o); });
+
+  const ejecs = [...new Set(CARTERA.map(c => c.ejecutivo))].sort();
+  const ejecSel = document.getElementById('fEjecutivo');
+  ejecs.forEach(e => { const o = document.createElement('option'); o.value = e; o.textContent = e; ejecSel.appendChild(o); });
+
+  // Events
+  document.getElementById('btnFilter').addEventListener('click', applyFilters);
+  document.getElementById('btnClear').addEventListener('click', () => {
+    document.getElementById('fSearch').value = '';
+    document.getElementById('fProv').value = '';
+    document.getElementById('fSemaforo').value = '';
+    document.getElementById('fEjecutivo').value = '';
+    applyFilters();
+  });
+  document.getElementById('btnBack').addEventListener('click', goBack);
+
+  // Tabs
+  document.querySelectorAll('#detailTabBar .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('#detailTabBar .tab-btn').forEach(b => b.classList.toggle('is-active', b === btn));
+      ['sensado','lotes','dalerts','bench'].forEach(t => {
+        document.getElementById('p-'+t).classList.toggle('is-active', t === tab);
+      });
+    });
+  });
+
+  // Modal
+  document.getElementById('btnMethodDetail')?.addEventListener('click', () => document.getElementById('modalMethod').classList.add('is-open'));
+  document.getElementById('btnCloseModal')?.addEventListener('click', () => document.getElementById('modalMethod').classList.remove('is-open'));
+  document.getElementById('modalMethod')?.addEventListener('click', e => { if (e.target.classList.contains('modal-bg')) document.getElementById('modalMethod').classList.remove('is-open'); });
+
+  // Init map
+  initMap();
+
+  // Initial render
+  applyFilters();
+
+  // Demo mode
+  if (META.demoMode) {
+    setTimeout(() => {
+      const redClient = CARTERA.find(c => c.scoring.semaforo === 'red');
+      if (redClient) showClientDetail(redClient.id);
+    }, 800);
+  }
+});
+
+})();
+</script>
+  <div class="bold-back-bar">
+    <a href="index.html" class="bold-back-bar__link">
+      <span class="bold-back-bar__chev">&lt;</span> Volver a la suite BoldOS
+    </a>
+    <span class="bold-back-bar__motto">El dato es <em>nuestro faro</em></span>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoldOS · Estimación de Oportunidad</title>
+
+  <!-- Leaflet (map tiles — requires internet for tile loading) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <style>
+  /* ==========================================================================
+     DESIGN TOKENS
+     ========================================================================== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* Brand greens */
+    --g900: #1a3a2a;  --g800: #1f4d35;  --g700: #266040;
+    --g600: #2e7d4f;  --g500: #3a9d63;  --g400: #5cb87a;
+    --g100: #dff0e4;  --g50:  #f0f8f2;
+
+    /* Neutrals */
+    --n900: #1a1a1a;  --n800: #2d2d2d;  --n700: #444;
+    --n600: #5a5a5a;  --n500: #777;     --n400: #999;
+    --n300: #b3b3b3;  --n200: #d4d4d4;  --n150: #e0e0e0;
+    --n100: #eee;     --n50:  #f7f7f7;  --white: #fff;
+
+    /* Signals */
+    --sig-up:    #2e7d32;  --sig-warn:  #f9a825;
+    --sig-alert: #ef6c00;  --sig-down:  #c62828;
+    --sig-mute:  #9e9e9e;
+    --sig-up-bg:    #e8f5e9;  --sig-warn-bg:  #fff8e1;
+    --sig-alert-bg: #fff3e0;  --sig-down-bg:  #ffebee;
+    --sig-mute-bg:  #f5f5f5;
+    --accent: #1565c0;  --accent-lt: #e3f2fd;
+
+    /* Typography */
+    --ff: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    --mono: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+
+    /* Spacing */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s8: 48px;
+
+    /* Radii & Shadows */
+    --r1: 4px; --r2: 6px; --r3: 8px; --r4: 12px;
+    --sh1: 0 1px 3px rgba(0,0,0,.08);
+    --sh2: 0 2px 8px rgba(0,0,0,.10);
+    --sh3: 0 4px 16px rgba(0,0,0,.12);
+    --tr: 200ms ease;
+  }
+
+  html { font-size: 14px; }
+  body {
+    font-family: var(--ff);
+    color: var(--n800);
+    background: var(--n50);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ==========================================================================
+     LAYOUT SHELL
+     ========================================================================== */
+
+  /* Header */
+  .hdr {
+    background: var(--g900);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--s5);
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .hdr__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .hdr__brand svg { width: 28px; height: 28px; }
+  .hdr__nav {
+    display: flex;
+    gap: var(--s5);
+    align-items: center;
+  }
+  .hdr__nav a, .hdr__nav span {
+    color: rgba(255,255,255,.5);
+    text-decoration: none;
+    font-size: .85rem;
+    transition: color var(--tr);
+    cursor: pointer;
+  }
+  .hdr__nav a:hover, .hdr__nav span:hover { color: var(--white); }
+  .hdr__nav .is-active { color: var(--white) !important; font-weight: 600; }
+  .hdr__meta {
+    font-size: .78rem;
+    color: rgba(255,255,255,.45);
+    display: flex;
+    gap: var(--s4);
+    align-items: center;
+  }
+
+  /* Breadcrumb */
+  .crumb {
+    padding: var(--s2) var(--s5);
+    font-size: .8rem;
+    color: var(--n500);
+    background: var(--white);
+    border-bottom: 1px solid var(--n150);
+  }
+  .crumb a { color: var(--g700); text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+
+  /* Main container */
+  .main { padding: var(--s5); max-width: 1440px; margin: 0 auto; }
+
+  /* Footer */
+  .ftr {
+    text-align: center;
+    padding: var(--s5);
+    font-size: .75rem;
+    color: var(--n400);
+    border-top: 1px solid var(--n150);
+    margin-top: var(--s6);
+  }
+
+  /* ==========================================================================
+     COMPONENTS
+     ========================================================================== */
+
+  /* Card */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    box-shadow: var(--sh1);
+    padding: var(--s5);
+    margin-bottom: var(--s4);
+    transition: box-shadow var(--tr);
+  }
+  .card:hover { box-shadow: var(--sh2); }
+  .card__title {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--n800);
+    margin-bottom: var(--s4);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+
+  /* KPI strip */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--s4);
+    margin-bottom: var(--s5);
+  }
+  .kpi {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s4) var(--s5);
+    box-shadow: var(--sh1);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--g600);
+  }
+  .kpi--warn::before  { background: var(--sig-warn); }
+  .kpi--down::before  { background: var(--sig-down); }
+  .kpi--accent::before { background: var(--accent); }
+  .kpi__label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--n500);
+    margin-bottom: var(--s1);
+  }
+  .kpi__value {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--n900);
+    line-height: 1.2;
+  }
+  .kpi__sub { font-size: .78rem; color: var(--n400); margin-top: var(--s1); }
+  .kpi__delta { font-size: .8rem; font-weight: 600; margin-top: var(--s1); }
+  .kpi__delta--up   { color: var(--sig-up); }
+  .kpi__delta--down { color: var(--sig-down); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--n150);
+    margin-bottom: var(--s5);
+  }
+  .tab-btn {
+    padding: var(--s2) var(--s5);
+    font-size: .85rem;
+    font-weight: 500;
+    color: var(--n500);
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--tr);
+    background: none;
+    font-family: var(--ff);
+  }
+  .tab-btn:hover { color: var(--g700); }
+  .tab-btn.is-active {
+    color: var(--g800);
+    border-bottom-color: var(--g700);
+    font-weight: 600;
+  }
+  .tab-panel        { display: none; }
+  .tab-panel.is-active { display: block; }
+
+  /* Tables */
+  .tbl { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .tbl thead th {
+    background: var(--n50);
+    text-align: left;
+    padding: var(--s2) var(--s4);
+    font-weight: 600;
+    color: var(--n700);
+    border-bottom: 2px solid var(--n200);
+    font-size: .76rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .tbl tbody tr {
+    border-bottom: 1px solid var(--n100);
+    transition: background var(--tr);
+  }
+  .tbl tbody tr:hover { background: var(--g50); }
+  .tbl tbody td { padding: var(--s2) var(--s4); vertical-align: middle; }
+  .tbl tfoot td {
+    padding: var(--s2) var(--s4);
+    font-weight: 700;
+    border-top: 2px solid var(--n200);
+  }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--mono);
+    font-size: .82rem;
+  }
+
+  /* Badges & micro elements */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .73rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge--up   { background: var(--sig-up-bg);   color: var(--sig-up); }
+  .badge--warn { background: var(--sig-warn-bg); color: #f57f17; }
+  .badge--down { background: var(--sig-down-bg); color: var(--sig-down); }
+  .badge--mute { background: var(--sig-mute-bg); color: var(--n600); }
+
+  .crop-cell { display: flex; align-items: center; gap: var(--s2); }
+  .crop-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .var       { font-size: .78rem; font-weight: 600; }
+  .var--up   { color: var(--sig-up); }
+  .var--down { color: var(--sig-down); }
+
+  /* Forms */
+  .field { margin-bottom: var(--s4); }
+  .field__label {
+    display: block;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--n700);
+    margin-bottom: var(--s1);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .field__select, .field__input {
+    width: 100%;
+    padding: var(--s2) var(--s4);
+    border: 1px solid var(--n200);
+    border-radius: var(--r2);
+    font-size: .9rem;
+    font-family: var(--ff);
+    color: var(--n800);
+    background: var(--white);
+    transition: border-color var(--tr), box-shadow var(--tr);
+  }
+  .field__select:focus, .field__input:focus {
+    outline: none;
+    border-color: var(--g600);
+    box-shadow: 0 0 0 3px rgba(46,125,79,.12);
+  }
+  .field__error { font-size: .75rem; color: var(--sig-down); margin-top: var(--s1); display: none; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s2) var(--s5);
+    border-radius: var(--r2);
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: var(--ff);
+    cursor: pointer;
+    border: none;
+    transition: all var(--tr);
+  }
+  .btn--pri { background: var(--g700); color: var(--white); }
+  .btn--pri:hover { background: var(--g800); box-shadow: var(--sh2); }
+  .btn--sec { background: var(--white); color: var(--g700); border: 1px solid var(--g700); }
+  .btn--sec:hover { background: var(--g50); }
+  .btn--sm { padding: var(--s1) var(--s4); font-size: .78rem; }
+
+  /* Loading & Empty */
+  .loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s8);
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--n200);
+    border-top-color: var(--g700);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty {
+    text-align: center;
+    padding: var(--s8) var(--s5);
+    color: var(--n400);
+  }
+  .empty__icon { font-size: 2.5rem; margin-bottom: var(--s4); opacity: .35; }
+  .empty__title { font-size: 1rem; font-weight: 600; color: var(--n600); margin-bottom: var(--s2); }
+  .empty__text { font-size: .85rem; max-width: 420px; margin: 0 auto; line-height: 1.6; }
+
+  /* Insights panel */
+  .insights {
+    background: var(--g50);
+    border-left: 4px solid var(--g600);
+    border-radius: var(--r2);
+    padding: var(--s4) var(--s5);
+    margin: var(--s4) 0;
+  }
+  .insights__hd {
+    font-size: .76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--g800);
+    margin-bottom: var(--s2);
+  }
+  .insights__item {
+    font-size: .85rem;
+    color: var(--n700);
+    padding: var(--s1) 0 var(--s1) var(--s4);
+    position: relative;
+    line-height: 1.5;
+  }
+  .insights__item::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--g600);
+    font-weight: bold;
+  }
+
+  /* Modal */
+  .modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-bg.is-open { display: flex; }
+  .modal {
+    background: var(--white);
+    border-radius: var(--r4);
+    padding: var(--s6);
+    max-width: 640px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--sh3);
+  }
+  .modal__hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s5);
+  }
+  .modal__title { font-size: 1.1rem; font-weight: 700; color: var(--n900); }
+  .modal__close {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--n400);
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal__close:hover { color: var(--n700); }
+  .method-block {
+    margin-bottom: var(--s4);
+    padding: var(--s4);
+    background: var(--g50);
+    border-radius: var(--r2);
+    font-size: .85rem;
+  }
+  .method-block strong {
+    color: var(--g800);
+    font-size: .82rem;
+    display: block;
+    margin-bottom: var(--s1);
+  }
+  .method-block p { color: var(--n600); line-height: 1.55; }
+
+  /* ==========================================================================
+     PAGE-SPECIFIC LAYOUT
+     ========================================================================== */
+  .filters-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr .8fr .8fr auto;
+    gap: var(--s4);
+    align-items: end;
+  }
+  .filters-actions {
+    display: flex;
+    gap: var(--s2);
+    align-items: end;
+    padding-bottom: 2px;
+  }
+  @media (max-width: 1200px) {
+    .filters-row { grid-template-columns: 1fr 1fr; }
+    .filters-actions { grid-column: 1 / -1; }
+  }
+
+  .layout-side {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: var(--s5);
+  }
+  @media (max-width: 1100px) { .layout-side { grid-template-columns: 1fr; } }
+
+  /* Polygon map */
+  .poly-map {
+    width: 100%;
+    height: 220px;
+    background: var(--n50);
+    border: 1px solid var(--n150);
+    border-radius: var(--r2);
+    overflow: hidden;
+  }
+  .poly-map svg { width: 100%; height: 100%; }
+
+  /* Area info list */
+  .info-list { margin-top: var(--s4); font-size: .82rem; color: var(--n600); }
+  .info-list__row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--s1) 0;
+    border-bottom: 1px solid var(--n100);
+  }
+  .info-list__row:last-child { border-bottom: none; }
+  .info-list__label { color: var(--n500); }
+  .info-list__val   { font-weight: 600; color: var(--n800); }
+
+  /* Tab section header */
+  .tab-hd { margin-bottom: var(--s5); }
+  .tab-hd__title { font-size: 1rem; font-weight: 700; color: var(--n900); margin-bottom: var(--s1); }
+  .tab-hd__sub   { font-size: .82rem; color: var(--n400); }
+
+  /* Chart */
+  .chart-wrap { width: 100%; min-height: 300px; }
+  .chart-wrap svg { width: 100%; height: 100%; }
+  .chart-legend { display: flex; gap: var(--s5); justify-content: center; margin-top: var(--s4); font-size: .8rem; }
+  .chart-legend__item { display: flex; align-items: center; gap: var(--s1); }
+  .chart-legend__swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+  /* ==========================================================================
+     GEO REFERENCE MAP (Leaflet)
+     ========================================================================== */
+  .geomap-section {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: var(--s5);
+    margin-bottom: var(--s4);
+  }
+  @media (max-width: 1100px) { .geomap-section { grid-template-columns: 1fr; } }
+
+  .geomap {
+    position: relative;
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    overflow: hidden;
+    min-height: 440px;
+    z-index: 1;
+  }
+  .geomap .leaflet-container {
+    height: 100%;
+    width: 100%;
+    min-height: 440px;
+    border-radius: var(--r3);
+    font-family: var(--ff);
+  }
+  /* Tone down Leaflet attribution */
+  .geomap .leaflet-control-attribution {
+    font-size: .65rem;
+    background: rgba(255,255,255,.7) !important;
+    backdrop-filter: blur(3px);
+  }
+  .geomap__hint {
+    position: absolute;
+    top: var(--s2);
+    right: 50px;
+    background: rgba(26,58,42,.88);
+    color: var(--white);
+    padding: 4px 12px;
+    border-radius: var(--r1);
+    font-size: .72rem;
+    pointer-events: none;
+    z-index: 500;
+    backdrop-filter: blur(4px);
+    letter-spacing: .02em;
+  }
+
+  /* Sidebar panel */
+  .geomap-panel { display: flex; flex-direction: column; gap: var(--s4); }
+  .geomap-pin-info {
+    background: var(--white);
+    border: 1px solid var(--n150);
+    border-radius: var(--r3);
+    padding: var(--s5);
+    box-shadow: var(--sh1);
+  }
+  .geomap-pin-info__title {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--n800);
+    margin-bottom: var(--s3);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+  .geomap-pin-info__title svg { flex-shrink: 0; }
+  .geomap-pin-info__empty {
+    font-size: .82rem;
+    color: var(--n400);
+    line-height: 1.6;
+    padding: var(--s4) 0;
+  }
+  .geomap-pin-info__grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--s1) var(--s4);
+    font-size: .82rem;
+  }
+  .geomap-pin-info__label { color: var(--n500); white-space: nowrap; }
+  .geomap-pin-info__val {
+    font-weight: 600;
+    color: var(--n800);
+    font-family: var(--mono);
+    font-size: .8rem;
+  }
+  .geomap-pin-info__val--text { font-family: var(--ff); }
+  .geomap-pin-info__actions { margin-top: var(--s3); display: flex; gap: var(--s2); }
+
+  /* Department circle popup */
+  .dept-popup { font-size: .82rem; line-height: 1.5; }
+  .dept-popup strong { color: var(--g800); }
+  .dept-popup .dept-popup__prov { font-size: .72rem; color: var(--n400); }
+
+  /* Legend */
+  .geomap-legend {
+    display: flex;
+    gap: var(--s4);
+    flex-wrap: wrap;
+    font-size: .72rem;
+    color: var(--n500);
+    padding: var(--s2) 0;
+  }
+  .geomap-legend__item { display: flex; align-items: center; gap: var(--s1); }
+  .geomap-legend__swatch {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.8);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.15);
+  }
+
+  /* Tile selector */
+  .geomap-tiles {
+    display: flex;
+    gap: var(--s1);
+    margin-top: var(--s2);
+  }
+  .geomap-tiles__btn {
+    padding: 2px 8px;
+    border-radius: var(--r1);
+    font-size: .7rem;
+    font-family: var(--ff);
+    border: 1px solid var(--n200);
+    background: var(--white);
+    color: var(--n600);
+    cursor: pointer;
+    transition: all var(--tr);
+  }
+  .geomap-tiles__btn:hover { border-color: var(--g600); color: var(--g700); }
+  .geomap-tiles__btn.is-active {
+    background: var(--g700);
+    color: var(--white);
+    border-color: var(--g700);
+  }
+
+  @media (max-width: 768px) {
+    .hdr__nav { display: none; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .filters-row { grid-template-columns: 1fr; }
+    .geomap-section { grid-template-columns: 1fr; }
+    .geomap { min-height: 320px; }
+  }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="assets/bold-chrome.css">
+</head>
+<body>
+
+  <!-- ================================================================
+       HEADER
+       ================================================================ -->
+  <header class="bold-hdr">
+    <a href="index.html" class="bold-hdr__brand" aria-label="Ir al inicio">
+      <span class="bold-hdr__brand-mark">BOLD</span>
+      <span class="bold-hdr__brand-sep"></span>
+      <span class="bold-hdr__product">
+        <span class="bold-hdr__product-name">Estimación de Oportunidad</span>
+        <span class="bold-hdr__product-tag">Detección de demanda crediticia</span>
+      </span>
+    </a>
+    <nav class="bold-hdr__nav">
+      <a href="oportunidad.html" class="is-active">Oportunidad</a>
+      <a href="precalificacion.html">Precalificación</a>
+      <a href="info-agronomica.html">Info Agronómica</a>
+      <a href="cartera.html">Cartera</a>
+    </nav>
+    <div class="bold-hdr__meta">
+      <span class="bold-hdr__meta-pill">Campaña 2025/26</span>
+      <span data-bind="date" id="headerDate"></span>
+    </div>
+    <div class="bold-hdr__pulse"></div>
+  </header>
+
+  <!-- Breadcrumb -->
+  <div class="crumb">
+    <a href="index.html">Inicio</a> <span style="margin:0 4px">›</span> Estimación de Oportunidad
+  </div>
+
+  <!-- ================================================================
+       MAIN CONTENT
+       ================================================================ -->
+  <main class="main">
+
+    <!-- Filters -->
+    <section class="card" id="filters">
+      <div class="filters-row">
+        <div class="field">
+          <label class="field__label" for="fProv">Provincia</label>
+          <select class="field__select" id="fProv"><option value="">Seleccionar provincia...</option></select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fDept">Departamento</label>
+          <select class="field__select" id="fDept" disabled><option value="">Seleccionar departamento...</option></select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fCampaign">Campaña</label>
+          <select class="field__select" id="fCampaign">
+            <option value="2025/26">2025/26 (Actual)</option>
+            <option value="2024/25">2024/25</option>
+            <option value="2023/24">2023/24</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fCrop">Cultivo</label>
+          <select class="field__select" id="fCrop"><option value="all">Todos los cultivos</option></select>
+        </div>
+        <div class="field filters-actions">
+          <button class="btn btn--pri" id="btnRun">Analizar área</button>
+          <button class="btn btn--sec btn--sm" id="btnClear">Limpiar</button>
+        </div>
+      </div>
+      <div class="field__error" id="filterMsg"></div>
+    </section>
+
+    <!-- Geo Reference Map -->
+    <section class="geomap-section card" id="geoMapSection">
+      <div class="geomap">
+        <div id="geoMap" style="width:100%;height:100%;min-height:440px"></div>
+        <div class="geomap__hint">Click para marcar ubicación</div>
+      </div>
+      <div class="geomap-panel">
+        <div class="geomap-pin-info" id="pinInfo">
+          <div class="geomap-pin-info__title">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C5.24 1 3 3.24 3 6c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z" fill="#c62828" opacity=".85"/><circle cx="8" cy="6" r="2" fill="white"/></svg>
+            Georeferencia
+          </div>
+          <div class="geomap-pin-info__empty" id="pinEmpty">
+            Hacé click en el mapa para marcar un punto de referencia. Se mostrarán las coordenadas y la provincia/departamento más cercano.
+          </div>
+          <div id="pinData" style="display:none">
+            <div class="geomap-pin-info__grid">
+              <span class="geomap-pin-info__label">Latitud</span>
+              <span class="geomap-pin-info__val" id="pinLat">—</span>
+              <span class="geomap-pin-info__label">Longitud</span>
+              <span class="geomap-pin-info__val" id="pinLng">—</span>
+              <span class="geomap-pin-info__label">Provincia</span>
+              <span class="geomap-pin-info__val geomap-pin-info__val--text" id="pinProv">—</span>
+              <span class="geomap-pin-info__label">Departamento</span>
+              <span class="geomap-pin-info__val geomap-pin-info__val--text" id="pinDept">—</span>
+            </div>
+            <div class="geomap-pin-info__actions">
+              <button class="btn btn--sec btn--sm" id="btnClearPin">Quitar pin</button>
+              <button class="btn btn--pri btn--sm" id="btnUsePin">Usar como filtro</button>
+            </div>
+          </div>
+        </div>
+        <div style="padding:0 var(--s2)">
+          <div class="geomap-legend" id="geoLegend"></div>
+          <div class="geomap-tiles" id="geoTiles">
+            <button class="geomap-tiles__btn is-active" data-tile="terrain">Terreno</button>
+            <button class="geomap-tiles__btn" data-tile="satellite">Satélite</button>
+            <button class="geomap-tiles__btn" data-tile="osm">Calles</button>
+          </div>
+          <p style="font-size:.72rem;color:var(--n400);margin-top:var(--s3);line-height:1.5">
+            Los círculos marcan departamentos con establecimientos en cartera. El radio es proporcional a la superficie total.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Empty state -->
+    <section id="stateEmpty" class="card empty">
+      <div class="empty__icon">◇</div>
+      <div class="empty__title">Seleccione un área de análisis</div>
+      <div class="empty__text">Elija una provincia y departamento para visualizar la estimación de oportunidad con datos históricos, actuales y proyectados.</div>
+    </section>
+
+    <!-- Loading state -->
+    <section id="stateLoading" class="card" style="display:none">
+      <div class="loader">
+        <div style="text-align:center">
+          <div class="spinner"></div>
+          <div style="margin-top:12px;font-size:.85rem;color:var(--n500)">Procesando información del área seleccionada...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <div id="stateResults" style="display:none">
+
+      <!-- Map + KPIs + Insights -->
+      <section class="layout-side">
+        <div class="card">
+          <div class="card__title">
+            <svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="var(--g700)" stroke-width="1.5"/><path d="M5 5L11 5L9 11L4 9Z" fill="var(--g100)" stroke="var(--g600)" stroke-width="1"/></svg>
+            Área de Análisis
+          </div>
+          <div id="polyMap" class="poly-map"></div>
+          <div id="areaInfo" class="info-list"></div>
+        </div>
+
+        <div>
+          <div class="kpi-row">
+            <div class="kpi" id="kpiSurf">
+              <div class="kpi__label">Superficie Total</div>
+              <div class="kpi__value">—</div>
+              <div class="kpi__sub"></div>
+            </div>
+            <div class="kpi" id="kpiVal">
+              <div class="kpi__label">Valor Productivo Estimado</div>
+              <div class="kpi__value">—</div>
+              <div class="kpi__delta"></div>
+            </div>
+            <div class="kpi" id="kpiDom">
+              <div class="kpi__label">Cultivo Dominante</div>
+              <div class="kpi__value">—</div>
+              <div class="kpi__sub"></div>
+            </div>
+            <div class="kpi kpi--accent" id="kpiLots">
+              <div class="kpi__label">Lotes Activos</div>
+              <div class="kpi__value">—</div>
+              <div class="kpi__sub"></div>
+            </div>
+          </div>
+          <div class="insights">
+            <div class="insights__hd">Señales Detectadas</div>
+            <div id="insightsList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tabs: data tables + chart -->
+      <section class="card" style="margin-top:var(--s4)">
+        <div class="tabs" id="tabBar">
+          <button class="tab-btn is-active" data-tab="hist">Histórico</button>
+          <button class="tab-btn" data-tab="curr">Actual</button>
+          <button class="tab-btn" data-tab="proj">Proyección Futura</button>
+          <button class="tab-btn" data-tab="comp">Comparativo</button>
+        </div>
+
+        <div class="tab-panel is-active" id="p-hist">
+          <div class="tab-hd">
+            <h3 class="tab-hd__title">Superficie y Rendimiento Histórico</h3>
+            <span class="tab-hd__sub">Campaña 2023/24 — Datos consolidados</span>
+          </div>
+          <div id="tblHist"></div>
+        </div>
+
+        <div class="tab-panel" id="p-curr">
+          <div class="tab-hd">
+            <h3 class="tab-hd__title">Situación Actual de Siembra</h3>
+            <span class="tab-hd__sub">Campaña 2025/26 — Corte al <span data-bind="date"></span></span>
+          </div>
+          <div id="tblCurr"></div>
+        </div>
+
+        <div class="tab-panel" id="p-proj">
+          <div class="tab-hd">
+            <h3 class="tab-hd__title">Proyección de Siembra Futura</h3>
+            <span class="tab-hd__sub">Estimación basada en patrones históricos, señales actuales y tendencias zonales</span>
+          </div>
+          <div id="tblProj"></div>
+          <button class="btn btn--sec btn--sm" id="btnMethod" style="margin-top:var(--s4)">Ver metodología de estimación</button>
+        </div>
+
+        <div class="tab-panel" id="p-comp">
+          <div class="tab-hd">
+            <h3 class="tab-hd__title">Comparativo Temporal por Cultivo</h3>
+            <span class="tab-hd__sub">Histórico vs Actual vs Proyección</span>
+          </div>
+          <div id="chartComp" class="chart-wrap"></div>
+          <div id="tblComp" style="margin-top:var(--s5)"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================================================================
+       MODAL — Methodology
+       ================================================================ -->
+  <div class="modal-bg" id="modalMethod">
+    <div class="modal">
+      <div class="modal__hd">
+        <div class="modal__title">Metodología de Estimación</div>
+        <button class="modal__close" id="btnCloseModal">&times;</button>
+      </div>
+      <p style="margin-bottom:12px;font-size:.9rem;color:var(--n700)">La proyección de siembra futura se construye integrando tres capas de información:</p>
+      <div class="method-block"><strong>1. Patrón histórico de rotación</strong><p>Se analiza la secuencia de cultivos en los últimos 3 ciclos para identificar el patrón de rotación predominante y estimar la probabilidad de cada cultivo en el próximo ciclo.</p></div>
+      <div class="method-block"><strong>2. Señales actuales del territorio</strong><p>Se incorporan variables como estrés hídrico, condición vegetativa (NDVI), benchmark zonal y continuidad agrícola para ajustar la proyección base.</p></div>
+      <div class="method-block"><strong>3. Tendencia zonal de mercado</strong><p>Se cruza con precios de referencia y tendencias de siembra observadas en la zona para calibrar el mix productivo esperado y la valorización económica resultante.</p></div>
+      <div style="margin-top:16px;padding:12px;background:var(--n50);border-radius:6px;font-size:.8rem;color:var(--n500)">La estimación tiene carácter orientativo y no reemplaza el análisis agronómico de campo. Actualización: campaña 2025/26 — Corte marzo 2026.</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="ftr">Agro Intelligence Suite — Información de carácter orientativo — Última actualización: <span data-bind="date"></span> — Campaña 2025/26</footer>
+
+
+<!-- ====================================================================
+     JAVASCRIPT — MODULAR ARCHITECTURE (single-file, offline-ready)
+     ==================================================================== -->
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   1. DATA LAYER — All static data & configuration
+   ===================================================================== */
+
+const META = Object.freeze({
+  lastUpdate: '2026-03-12',
+  campaign:   '2025/26',
+  demoMode:   false       // true → auto-loads Córdoba > Marcos Juárez
+});
+
+const REGIONS = Object.freeze([
+  { province: 'Buenos Aires',  departments: ['Pergamino','Junín','Rojas','Salto','Colón'] },
+  { province: 'Córdoba',       departments: ['Marcos Juárez','Unión','Río Cuarto','General San Martín','Tercero Arriba'] },
+  { province: 'Santa Fe',      departments: ['General López','Caseros','Constitución','Belgrano','Iriondo'] },
+  { province: 'Entre Ríos',    departments: ['Paraná','Diamante','Victoria','Gualeguaychú'] },
+  { province: 'La Pampa',      departments: ['Quemú Quemú','Maracó','Catriló'] }
+]);
+
+const CROPS = Object.freeze({
+  soja:    { label: 'Soja',    color: '#4CAF50', price: 320 },
+  maiz:    { label: 'Maíz',    color: '#FFC107', price: 185 },
+  trigo:   { label: 'Trigo',   color: '#8D6E63', price: 230 },
+  girasol: { label: 'Girasol', color: '#FF9800', price: 410 },
+  cebada:  { label: 'Cebada',  color: '#9E9D24', price: 210 }
+});
+
+// Benchmark: rendimiento zonal (qq/ha) por departamento
+const BENCHMARKS = Object.freeze({
+  'Pergamino':         { soja:38, maiz:95, trigo:42, girasol:24, cebada:38 },
+  'Junín':             { soja:36, maiz:90, trigo:40, girasol:22, cebada:36 },
+  'Marcos Juárez':     { soja:40, maiz:100,trigo:45, girasol:26, cebada:40 },
+  'Unión':             { soja:35, maiz:85, trigo:38, girasol:21, cebada:34 },
+  'General López':     { soja:37, maiz:92, trigo:41, girasol:23, cebada:37 },
+  'Caseros':           { soja:36, maiz:88, trigo:39, girasol:22, cebada:35 },
+  'Paraná':            { soja:32, maiz:78, trigo:35, girasol:19, cebada:30 },
+  'Quemú Quemú':       { soja:28, maiz:70, trigo:30, girasol:17, cebada:26 },
+  'Rojas':             { soja:37, maiz:93, trigo:41, girasol:23, cebada:37 },
+  'Río Cuarto':        { soja:30, maiz:75, trigo:33, girasol:18, cebada:28 },
+  'General San Martín': { soja:33, maiz:82, trigo:36, girasol:20, cebada:32 },
+  'Constitución':      { soja:35, maiz:87, trigo:39, girasol:21, cebada:34 },
+  'Diamante':          { soja:31, maiz:76, trigo:34, girasol:18, cebada:29 },
+  'Maracó':            { soja:27, maiz:68, trigo:29, girasol:16, cebada:25 },
+  'Victoria':          { soja:30, maiz:74, trigo:33, girasol:18, cebada:28 },
+  'Gualeguaychú':      { soja:31, maiz:75, trigo:34, girasol:19, cebada:29 },
+  'Salto':             { soja:36, maiz:91, trigo:40, girasol:22, cebada:36 },
+  'Colón':             { soja:35, maiz:88, trigo:39, girasol:21, cebada:35 },
+  'Tercero Arriba':    { soja:32, maiz:80, trigo:35, girasol:20, cebada:31 },
+  'Belgrano':          { soja:35, maiz:86, trigo:38, girasol:21, cebada:34 },
+  'Iriondo':           { soja:34, maiz:85, trigo:38, girasol:21, cebada:33 },
+  'Catriló':           { soja:26, maiz:65, trigo:28, girasol:15, cebada:24 }
+});
+
+const ESTABLISHMENTS = Object.freeze([
+  { id:'EST-001', dept:'Pergamino',       ha:1200, lots:['LOT-001','LOT-002','LOT-003'] },
+  { id:'EST-002', dept:'Pergamino',       ha:680,  lots:['LOT-004','LOT-005'] },
+  { id:'EST-003', dept:'Marcos Juárez',   ha:950,  lots:['LOT-006','LOT-007','LOT-008'] },
+  { id:'EST-004', dept:'General López',   ha:1800, lots:['LOT-009','LOT-010','LOT-011','LOT-012'] },
+  { id:'EST-005', dept:'General López',   ha:750,  lots:['LOT-013','LOT-014'] },
+  { id:'EST-006', dept:'Paraná',          ha:520,  lots:['LOT-015','LOT-016'] },
+  { id:'EST-007', dept:'Quemú Quemú',     ha:2200, lots:['LOT-017','LOT-018','LOT-019'] },
+  { id:'EST-008', dept:'Quemú Quemú',     ha:900,  lots:['LOT-020','LOT-021'] },
+  { id:'EST-009', dept:'Unión',           ha:1100, lots:['LOT-022','LOT-023','LOT-024'] },
+  { id:'EST-010', dept:'Rojas',           ha:870,  lots:['LOT-025','LOT-026'] },
+  { id:'EST-011', dept:'Constitución',    ha:1400, lots:['LOT-027','LOT-028','LOT-029'] },
+  { id:'EST-012', dept:'Río Cuarto',      ha:640,  lots:['LOT-030','LOT-031'] },
+  { id:'EST-013', dept:'Junín',           ha:1600, lots:['LOT-032','LOT-033','LOT-034','LOT-035'] }
+]);
+
+const LOTS = Object.freeze([
+  { id:'LOT-001', est:'EST-001', ha:450,  cur:'soja',    prev:'trigo',  proj:'maiz',   yH:36, yC:34, yP:37, ws:'low',      cond:'good',      ndvi:.72 },
+  { id:'LOT-002', est:'EST-001', ha:400,  cur:'maiz',    prev:'soja',   proj:'soja',   yH:92, yC:88, yP:94, ws:'moderate', cond:'good',      ndvi:.68 },
+  { id:'LOT-003', est:'EST-001', ha:350,  cur:'trigo',   prev:'maiz',   proj:'soja',   yH:40, yC:38, yP:41, ws:'low',      cond:'good',      ndvi:.65 },
+  { id:'LOT-004', est:'EST-002', ha:380,  cur:'soja',    prev:'soja',   proj:'maiz',   yH:35, yC:32, yP:35, ws:'moderate', cond:'fair',      ndvi:.58 },
+  { id:'LOT-005', est:'EST-002', ha:300,  cur:'girasol', prev:'trigo',  proj:'soja',   yH:22, yC:20, yP:23, ws:'low',      cond:'good',      ndvi:.62 },
+  { id:'LOT-006', est:'EST-003', ha:380,  cur:'soja',    prev:'maiz',   proj:'trigo',  yH:41, yC:42, yP:43, ws:'low',      cond:'excellent', ndvi:.78 },
+  { id:'LOT-007', est:'EST-003', ha:320,  cur:'maiz',    prev:'soja',   proj:'maiz',   yH:98, yC:102,yP:105,ws:'low',      cond:'excellent', ndvi:.81 },
+  { id:'LOT-008', est:'EST-003', ha:250,  cur:'trigo',   prev:'trigo',  proj:'soja',   yH:44, yC:46, yP:45, ws:'low',      cond:'good',      ndvi:.70 },
+  { id:'LOT-009', est:'EST-004', ha:500,  cur:'soja',    prev:'soja',   proj:'soja',   yH:35, yC:28, yP:30, ws:'high',     cond:'poor',      ndvi:.42 },
+  { id:'LOT-010', est:'EST-004', ha:480,  cur:'maiz',    prev:'soja',   proj:'maiz',   yH:88, yC:72, yP:78, ws:'high',     cond:'fair',      ndvi:.48 },
+  { id:'LOT-011', est:'EST-004', ha:420,  cur:'trigo',   prev:'maiz',   proj:'soja',   yH:39, yC:33, yP:35, ws:'moderate', cond:'fair',      ndvi:.52 },
+  { id:'LOT-012', est:'EST-004', ha:400,  cur:'soja',    prev:'trigo',  proj:'maiz',   yH:36, yC:30, yP:32, ws:'high',     cond:'poor',      ndvi:.44 },
+  { id:'LOT-013', est:'EST-005', ha:400,  cur:'soja',    prev:'maiz',   proj:'soja',   yH:34, yC:29, yP:31, ws:'moderate', cond:'fair',      ndvi:.50 },
+  { id:'LOT-014', est:'EST-005', ha:350,  cur:'maiz',    prev:'soja',   proj:'trigo',  yH:85, yC:76, yP:80, ws:'moderate', cond:'fair',      ndvi:.53 },
+  { id:'LOT-015', est:'EST-006', ha:280,  cur:'soja',    prev:'trigo',  proj:'maiz',   yH:33, yC:34, yP:35, ws:'low',      cond:'good',      ndvi:.69 },
+  { id:'LOT-016', est:'EST-006', ha:240,  cur:'trigo',   prev:'soja',   proj:'soja',   yH:36, yC:37, yP:38, ws:'low',      cond:'good',      ndvi:.66 },
+  { id:'LOT-017', est:'EST-007', ha:800,  cur:'soja',    prev:'soja',   proj:'soja',   yH:27, yC:22, yP:24, ws:'high',     cond:'poor',      ndvi:.38 },
+  { id:'LOT-018', est:'EST-007', ha:750,  cur:'maiz',    prev:'soja',   proj:'maiz',   yH:68, yC:58, yP:62, ws:'high',     cond:'fair',      ndvi:.44 },
+  { id:'LOT-019', est:'EST-007', ha:650,  cur:'girasol', prev:'maiz',   proj:'soja',   yH:16, yC:13, yP:15, ws:'moderate', cond:'fair',      ndvi:.48 },
+  { id:'LOT-020', est:'EST-008', ha:500,  cur:'soja',    prev:'trigo',  proj:'maiz',   yH:26, yC:23, yP:25, ws:'moderate', cond:'fair',      ndvi:.46 },
+  { id:'LOT-021', est:'EST-008', ha:400,  cur:'trigo',   prev:'soja',   proj:'soja',   yH:29, yC:26, yP:28, ws:'moderate', cond:'fair',      ndvi:.50 },
+  { id:'LOT-022', est:'EST-009', ha:400,  cur:'soja',    prev:'maiz',   proj:'trigo',  yH:34, yC:33, yP:35, ws:'low',      cond:'good',      ndvi:.64 },
+  { id:'LOT-023', est:'EST-009', ha:380,  cur:'maiz',    prev:'soja',   proj:'maiz',   yH:84, yC:80, yP:85, ws:'moderate', cond:'good',      ndvi:.62 },
+  { id:'LOT-024', est:'EST-009', ha:320,  cur:'cebada',  prev:'maiz',   proj:'soja',   yH:33, yC:31, yP:34, ws:'low',      cond:'good',      ndvi:.60 },
+  { id:'LOT-025', est:'EST-010', ha:480,  cur:'soja',    prev:'trigo',  proj:'maiz',   yH:38, yC:39, yP:40, ws:'low',      cond:'excellent', ndvi:.76 },
+  { id:'LOT-026', est:'EST-010', ha:390,  cur:'maiz',    prev:'soja',   proj:'soja',   yH:94, yC:96, yP:98, ws:'low',      cond:'excellent', ndvi:.79 },
+  { id:'LOT-027', est:'EST-011', ha:500,  cur:'soja',    prev:'soja',   proj:'soja',   yH:33, yC:26, yP:28, ws:'high',     cond:'poor',      ndvi:.40 },
+  { id:'LOT-028', est:'EST-011', ha:480,  cur:'maiz',    prev:'soja',   proj:'maiz',   yH:84, yC:68, yP:72, ws:'high',     cond:'poor',      ndvi:.42 },
+  { id:'LOT-029', est:'EST-011', ha:420,  cur:'trigo',   prev:'maiz',   proj:'soja',   yH:38, yC:32, yP:34, ws:'moderate', cond:'fair',      ndvi:.52 },
+  { id:'LOT-030', est:'EST-012', ha:340,  cur:'soja',    prev:'maiz',   proj:'trigo',  yH:31, yC:32, yP:33, ws:'low',      cond:'good',      ndvi:.66 },
+  { id:'LOT-031', est:'EST-012', ha:300,  cur:'maiz',    prev:'soja',   proj:'maiz',   yH:76, yC:78, yP:80, ws:'low',      cond:'good',      ndvi:.68 },
+  { id:'LOT-032', est:'EST-013', ha:450,  cur:'soja',    prev:'soja',   proj:'soja',   yH:34, yC:28, yP:30, ws:'high',     cond:'poor',      ndvi:.40 },
+  { id:'LOT-033', est:'EST-013', ha:420,  cur:'maiz',    prev:'soja',   proj:'maiz',   yH:86, yC:72, yP:76, ws:'high',     cond:'fair',      ndvi:.46 },
+  { id:'LOT-034', est:'EST-013', ha:380,  cur:'trigo',   prev:'maiz',   proj:'soja',   yH:38, yC:32, yP:34, ws:'moderate', cond:'fair',      ndvi:.50 },
+  { id:'LOT-035', est:'EST-013', ha:350,  cur:'girasol', prev:'soja',   proj:'maiz',   yH:20, yC:16, yP:18, ws:'high',     cond:'poor',      ndvi:.38 }
+]);
+
+// Derived indexes
+const DEPT_PROV = {};
+REGIONS.forEach(r => r.departments.forEach(d => DEPT_PROV[d] = r.province));
+
+const LOT_BY_EST = {};
+LOTS.forEach(l => {
+  (LOT_BY_EST[l.est] ??= []).push(l);
+});
+
+
+/* =====================================================================
+   2. UTILITIES
+   ===================================================================== */
+
+const fmt = {
+  n:   (v, d = 0) => new Intl.NumberFormat('es-AR', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v),
+  usd: (v)        => 'USD ' + fmt.n(v),
+  ha:  (v)        => fmt.n(v) + ' ha',
+  y:   (v)        => fmt.n(v, 1) + ' qq/ha',
+  pct: (v)        => (v >= 0 ? '+' : '') + fmt.n(v, 1) + '%',
+  date:(s)        => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; }
+};
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function getLotsForDept(dept) {
+  return ESTABLISHMENTS.filter(e => e.dept === dept).flatMap(e => LOT_BY_EST[e.id] || []);
+}
+function getLotsForProv(prov) {
+  const reg = REGIONS.find(r => r.province === prov);
+  return reg ? reg.departments.flatMap(d => getLotsForDept(d)) : [];
+}
+
+
+/* =====================================================================
+   3. ANALYSIS ENGINE
+   ===================================================================== */
+
+function analyze(lots) {
+  // Aggregate per crop across 3 time periods
+  const crops = {};
+  const ensure = (key) => {
+    if (!crops[key]) crops[key] = {
+      current:    { ha: 0, ySum: 0, n: 0 },
+      historical: { ha: 0, ySum: 0, n: 0 },
+      projected:  { ha: 0, ySum: 0, n: 0 }
+    };
+  };
+
+  lots.forEach(lot => {
+    ensure(lot.cur);
+    crops[lot.cur].current.ha    += lot.ha;
+    crops[lot.cur].current.ySum  += lot.yC * lot.ha;
+    crops[lot.cur].current.n++;
+
+    ensure(lot.prev);
+    crops[lot.prev].historical.ha   += lot.ha;
+    crops[lot.prev].historical.ySum += lot.yH * lot.ha;
+    crops[lot.prev].historical.n++;
+
+    ensure(lot.proj);
+    crops[lot.proj].projected.ha   += lot.ha;
+    crops[lot.proj].projected.ySum += lot.yP * lot.ha;
+    crops[lot.proj].projected.n++;
+  });
+
+  // Enrich each crop with derived values
+  const result = {};
+  for (const [key, d] of Object.entries(crops)) {
+    const ci = CROPS[key];
+    if (!ci) continue;
+    const calc = (p) => {
+      const ay = p.ha > 0 ? p.ySum / p.ha : 0;
+      return { ha: p.ha, ay, val: Math.round(p.ha * ay * ci.price / 10), n: p.n };
+    };
+    result[key] = {
+      label: ci.label,
+      color: ci.color,
+      current:    calc(d.current),
+      historical: calc(d.historical),
+      projected:  calc(d.projected)
+    };
+  }
+
+  // Summary KPIs
+  const tCHa  = lots.reduce((s, l) => s + l.ha, 0);
+  const tCVal = Object.values(result).reduce((s, c) => s + c.current.val, 0);
+  const tHVal = Object.values(result).reduce((s, c) => s + c.historical.val, 0);
+  const tPVal = Object.values(result).reduce((s, c) => s + c.projected.val, 0);
+
+  let domCrop = '', maxHa = 0;
+  for (const [k, d] of Object.entries(result)) {
+    if (d.current.ha > maxHa) { maxHa = d.current.ha; domCrop = k; }
+  }
+
+  return {
+    crops: result,
+    tCHa, tCVal, tHVal, tPVal,
+    domCrop,
+    nLots: lots.length,
+    nEst: new Set(lots.map(l => l.est)).size
+  };
+}
+
+
+/* =====================================================================
+   4. INSIGHT GENERATOR
+   ===================================================================== */
+
+function generateInsights(analysis, lots, dept) {
+  const a = analysis;
+  const ins = [];
+
+  // Value trend vs historical
+  if (a.tHVal > 0) {
+    const p = (a.tCVal - a.tHVal) / a.tHVal * 100;
+    if (p > 5)
+      ins.push(`El valor productivo estimado del área aumenta ${Math.abs(p).toFixed(1)}% respecto de la campaña anterior, impulsado por mejoras en rendimiento y mix de cultivos.`);
+    else if (p < -5)
+      ins.push(`El valor productivo estimado del área disminuye ${Math.abs(p).toFixed(1)}% respecto de la campaña anterior, lo que sugiere un deterioro en rendimiento o cambio de mix productivo.`);
+  }
+
+  // Projected mix shift
+  if (a.tPVal > 0 && a.tCVal > 0) {
+    const p = (a.tPVal - a.tCVal) / a.tCVal * 100;
+    if (p > 3)
+      ins.push(`La superficie proyectada sugiere una recomposición del mix agrícola con un incremento potencial de valor del ${p.toFixed(1)}%.`);
+    else if (p < -3)
+      ins.push(`La proyección futura muestra un retroceso potencial de valor del ${Math.abs(p).toFixed(1)}%, vinculado a cambios en el patrón de rotación.`);
+  }
+
+  // Per-crop expansion/contraction
+  for (const [, c] of Object.entries(a.crops)) {
+    if (c.projected.ha > c.current.ha * 1.15 && c.current.ha > 0)
+      ins.push(`Se detecta expansión potencial de ${c.label.toLowerCase()} (+${Math.round((c.projected.ha / c.current.ha - 1) * 100)}%) respecto de la superficie actual.`);
+    if (c.projected.ha < c.current.ha * 0.8 && c.current.ha > 0)
+      ins.push(`Se observa contracción proyectada de ${c.label.toLowerCase()} (−${Math.round((1 - c.projected.ha / c.current.ha) * 100)}%), posiblemente vinculada a rotación o condiciones hídricas.`);
+  }
+
+  // Benchmark comparison
+  const bm = dept ? BENCHMARKS[dept] : null;
+  if (bm) {
+    let above = 0, below = 0;
+    for (const [k, c] of Object.entries(a.crops)) {
+      if (c.current.ha > 0 && bm[k]) {
+        c.current.ay >= bm[k] ? above++ : below++;
+      }
+    }
+    if (above > below)
+      ins.push('El desempeño promedio del área se ubica por encima del benchmark zonal en la mayoría de los cultivos activos.');
+    else if (below > above)
+      ins.push('Se observa una brecha negativa respecto del benchmark zonal en parte de los cultivos, lo que requiere seguimiento.');
+  }
+
+  // Water stress
+  const stressed = lots.filter(l => l.ws === 'high');
+  if (stressed.length)
+    ins.push(`El ${Math.round(stressed.length / lots.length * 100)}% de los lotes presenta estrés hídrico alto, con impacto potencial sobre el rinde esperado en la campaña actual.`);
+
+  if (!ins.length)
+    ins.push('El patrón productivo del área se mantiene estable respecto de las campañas previas, sin señales significativas de cambio.');
+
+  return ins;
+}
+
+
+/* =====================================================================
+   5. RENDERERS
+   ===================================================================== */
+
+const Render = {
+
+  // ---- Period table (historical / current / projected) ----
+  periodTable(containerId, analysis, period, dept) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    const bm = dept ? BENCHMARKS[dept] : null;
+    const entries = Object.entries(analysis.crops).filter(([, c]) => c[period].ha > 0);
+    const totalHa = entries.reduce((s, [, c]) => s + c[period].ha, 0);
+    let totalVal = 0;
+
+    const rows = entries.map(([k, c]) => {
+      const d = c[period];
+      totalVal += d.val;
+      const pct = totalHa > 0 ? Math.round(d.ha / totalHa * 100) : 0;
+      const bmV = bm?.[k];
+      const bmCells = bmV
+        ? `<td class="num">${fmt.y(bmV)}</td><td class="num"><span class="var ${d.ay >= bmV ? 'var--up' : 'var--down'}">${fmt.pct((d.ay - bmV) / bmV * 100)}</span></td>`
+        : '<td class="num">—</td><td class="num">—</td>';
+
+      return `<tr>
+        <td><span class="crop-cell"><span class="crop-dot" style="background:${c.color}"></span>${c.label}</span></td>
+        <td class="num">${fmt.ha(d.ha)}</td>
+        <td class="num">${pct}%</td>
+        <td class="num">${fmt.y(d.ay)}</td>
+        ${bmCells}
+        <td class="num">${fmt.usd(d.val)}</td>
+        <td class="num">${d.n}</td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `<table class="tbl"><thead><tr>
+      <th>Cultivo</th><th>Superficie</th><th>Part. %</th><th>Rinde Prom.</th><th>Benchmark Zonal</th><th>vs Benchmark</th><th>Valor Estimado</th><th>Lotes</th>
+    </tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr>
+      <td>Total</td><td class="num">${fmt.ha(totalHa)}</td><td class="num">100%</td><td colspan="3"></td><td class="num">${fmt.usd(totalVal)}</td><td></td>
+    </tr></tfoot></table>`;
+  },
+
+  // ---- Comparative table ----
+  compTable(analysis) {
+    const el = document.getElementById('tblComp');
+    if (!el) return;
+
+    const rows = Object.entries(analysis.crops).map(([, c]) => {
+      const hH = c.historical.ha, cH = c.current.ha, pH = c.projected.ha;
+      if (!hH && !cH && !pH) return '';
+      const v1 = hH > 0 ? (cH - hH) / hH * 100 : 0;
+      const v2 = cH > 0 ? (pH - cH) / cH * 100 : 0;
+      return `<tr>
+        <td><span class="crop-cell"><span class="crop-dot" style="background:${c.color}"></span>${c.label}</span></td>
+        <td class="num">${fmt.ha(hH)}</td><td class="num">${fmt.ha(cH)}</td>
+        <td class="num"><span class="var ${v1 >= 0 ? 'var--up' : 'var--down'}">${fmt.pct(v1)}</span></td>
+        <td class="num">${fmt.ha(pH)}</td>
+        <td class="num"><span class="var ${v2 >= 0 ? 'var--up' : 'var--down'}">${fmt.pct(v2)}</span></td>
+        <td class="num">${fmt.usd(c.current.val)}</td><td class="num">${fmt.usd(c.projected.val)}</td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `<table class="tbl"><thead><tr>
+      <th>Cultivo</th><th>Hist. (ha)</th><th>Actual (ha)</th><th>Var. Act/Hist</th><th>Proyec. (ha)</th><th>Var. Proy/Act</th><th>Valor Actual</th><th>Valor Proyectado</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  },
+
+  // ---- Comparative SVG bar chart ----
+  chart(analysis) {
+    const el = document.getElementById('chartComp');
+    if (!el) return;
+
+    const keys = Object.keys(analysis.crops).filter(k => {
+      const c = analysis.crops[k];
+      return c.historical.ha > 0 || c.current.ha > 0 || c.projected.ha > 0;
+    });
+    if (!keys.length) {
+      el.innerHTML = '<div class="empty"><div class="empty__title">Sin datos comparativos</div></div>';
+      return;
+    }
+
+    const maxH = Math.max(...keys.flatMap(k => [
+      analysis.crops[k].historical.ha,
+      analysis.crops[k].current.ha,
+      analysis.crops[k].projected.ha
+    ]));
+
+    const W = 700, H = 320;
+    const m = { t: 30, r: 20, b: 60, l: 70 };
+    const pW = W - m.l - m.r, pH = H - m.t - m.b;
+    const gW = pW / keys.length;
+    const bW = Math.min(gW * 0.25, 36), gap = 4;
+    const yMax = Math.ceil(maxH / 100) * 100 || 100;
+    const yTicks = 5;
+    const colors = { historical: '#8FB8A0', current: '#2e7d4f', projected: '#1a3a2a' };
+    const periodLabels = { historical: 'Histórico', current: 'Actual', projected: 'Proyección' };
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="max-height:320px">`;
+
+    // Grid lines + Y axis labels
+    for (let i = 0; i <= yTicks; i++) {
+      const y = m.t + pH - pH * i / yTicks;
+      const v = Math.round(yMax * i / yTicks);
+      svg += `<line x1="${m.l}" y1="${y}" x2="${W - m.r}" y2="${y}" stroke="#e0e0e0" stroke-width=".5"/>`;
+      svg += `<text x="${m.l - 8}" y="${y + 4}" text-anchor="end" fill="#777" font-size="11" font-family="Segoe UI,Arial">${fmt.n(v)}</text>`;
+    }
+    svg += `<text x="14" y="${m.t + pH / 2}" transform="rotate(-90,14,${m.t + pH / 2})" text-anchor="middle" fill="#999" font-size="10" font-family="Segoe UI,Arial">Hectáreas</text>`;
+
+    // Bars
+    keys.forEach((k, i) => {
+      const c = analysis.crops[k];
+      const cx = m.l + gW * i + gW / 2;
+
+      ['historical', 'current', 'projected'].forEach((p, j) => {
+        const v = c[p].ha;
+        const bH = (v / yMax) * pH;
+        const x = cx - (bW * 1.5 + gap) + j * (bW + gap);
+        const y = m.t + pH - bH;
+        svg += `<rect x="${x}" y="${y}" width="${bW}" height="${bH}" fill="${colors[p]}" rx="2"><title>${c.label} — ${periodLabels[p]}: ${fmt.n(v)} ha</title></rect>`;
+        if (v > yMax * 0.05) {
+          svg += `<text x="${x + bW / 2}" y="${y - 4}" text-anchor="middle" fill="#555" font-size="9" font-family="Segoe UI,Arial">${fmt.n(v)}</text>`;
+        }
+      });
+
+      svg += `<text x="${cx}" y="${H - m.b + 18}" text-anchor="middle" fill="#444" font-size="12" font-weight="600" font-family="Segoe UI,Arial">${c.label}</text>`;
+    });
+
+    svg += '</svg>';
+
+    el.innerHTML = svg + `<div class="chart-legend">
+      <div class="chart-legend__item"><div class="chart-legend__swatch" style="background:#8FB8A0"></div>Histórico</div>
+      <div class="chart-legend__item"><div class="chart-legend__swatch" style="background:#2e7d4f"></div>Actual</div>
+      <div class="chart-legend__item"><div class="chart-legend__swatch" style="background:#1a3a2a"></div>Proyección</div>
+    </div>`;
+  },
+
+  // ---- Polygon map (SVG schematic) ----
+  map(lots) {
+    const el = document.getElementById('polyMap');
+    if (!el) return;
+
+    const cols = Math.ceil(Math.sqrt(lots.length));
+    const rows = Math.ceil(lots.length / cols);
+    const cW = 100 / cols, cH = 100 / rows;
+
+    let svg = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"><rect width="100" height="100" fill="#f0f8f2" rx="2"/>';
+
+    lots.forEach((lot, i) => {
+      const c = i % cols, r = Math.floor(i / cols);
+      const x = c * cW + cW * .1, y = r * cH + cH * .1;
+      const w = cW * .8, h = cH * .8;
+      const cc = CROPS[lot.cur]?.color || '#999';
+      const ox = w * .08, oy = h * .08;
+      const pts = `${x + ox},${y} ${x + w},${y + oy} ${x + w - ox},${y + h} ${x},${y + h - oy}`;
+      svg += `<polygon points="${pts}" fill="${cc}" fill-opacity=".35" stroke="${cc}" stroke-width=".4"><title>${lot.id} — ${CROPS[lot.cur]?.label || ''} — ${lot.ha} ha</title></polygon>`;
+      if (lots.length <= 12) {
+        svg += `<text x="${x + w / 2}" y="${y + h / 2 + 1.5}" text-anchor="middle" fill="#333" font-size="${Math.max(2.5, 5 - lots.length * .15)}" font-family="Segoe UI,Arial">${lot.ha}ha</text>`;
+      }
+    });
+
+    svg += '</svg>';
+    el.innerHTML = svg;
+  },
+
+  // ---- Area info sidebar ----
+  areaInfo(analysis, prov, dept) {
+    const el = document.getElementById('areaInfo');
+    if (!el) return;
+    const nc = Object.values(analysis.crops).filter(c => c.current.ha > 0).length;
+    el.innerHTML = [
+      ['Región',           (dept ? dept + ', ' : '') + prov],
+      ['Superficie',       fmt.ha(analysis.tCHa)],
+      ['Cultivos activos', nc],
+      ['Establecimientos', analysis.nEst],
+      ['Campaña',          META.campaign]
+    ].map(([label, val]) =>
+      `<div class="info-list__row"><span class="info-list__label">${label}</span><span class="info-list__val">${val}</span></div>`
+    ).join('');
+  },
+
+  // ---- KPIs ----
+  kpis(analysis, dept, prov) {
+    const a = analysis;
+
+    // Surface
+    const kS = $('#kpiSurf');
+    kS.querySelector('.kpi__value').textContent = fmt.ha(a.tCHa);
+    kS.querySelector('.kpi__sub').textContent = a.nEst + ' establecimientos';
+
+    // Value
+    const kV = $('#kpiVal');
+    kV.querySelector('.kpi__value').textContent = fmt.usd(a.tCVal);
+    const vd = a.tHVal > 0 ? (a.tCVal - a.tHVal) / a.tHVal * 100 : 0;
+    const deltaEl = kV.querySelector('.kpi__delta');
+    deltaEl.textContent = fmt.pct(vd) + ' vs histórico';
+    deltaEl.className = 'kpi__delta ' + (vd >= 0 ? 'kpi__delta--up' : 'kpi__delta--down');
+
+    // Dominant crop
+    const dc = a.crops[a.domCrop];
+    const kD = $('#kpiDom');
+    kD.querySelector('.kpi__value').textContent = dc ? dc.label : '—';
+    kD.querySelector('.kpi__sub').textContent = dc ? fmt.ha(dc.current.ha) + ' (' + Math.round(dc.current.ha / a.tCHa * 100) + '% del total)' : '';
+
+    // Lots
+    const kL = $('#kpiLots');
+    kL.querySelector('.kpi__value').textContent = a.nLots;
+    kL.querySelector('.kpi__sub').textContent = dept || prov;
+  },
+
+  // ---- Insights list ----
+  insights(items) {
+    document.getElementById('insightsList').innerHTML =
+      items.map(i => `<div class="insights__item">${i}</div>`).join('');
+  }
+};
+
+
+/* =====================================================================
+   5b. GEO REFERENCE MAP — Leaflet + real tiles
+   ===================================================================== */
+
+const GeoMap = (() => {
+
+  let map = null;
+  let pinMarker = null;
+  let currentTileKey = 'terrain';
+  let tileLayers = {};
+  let deptCircles = [];
+
+  // Province colors for circle borders and legend
+  const PROV_COLORS = {
+    'Buenos Aires': { fill: '#2e7d4f', stroke: '#1a5c38' },
+    'Córdoba':      { fill: '#1565c0', stroke: '#0d47a1' },
+    'Santa Fe':     { fill: '#ef6c00', stroke: '#bf360c' },
+    'Entre Ríos':   { fill: '#7b1fa2', stroke: '#4a148c' },
+    'La Pampa':     { fill: '#c62828', stroke: '#8e0000' }
+  };
+
+  // Department centroids with total ha from ESTABLISHMENTS
+  const DEPTS = [
+    { name: 'Pergamino',           prov: 'Buenos Aires',  lat: -33.89, lng: -60.57, ha: 1880 },
+    { name: 'Junín',               prov: 'Buenos Aires',  lat: -34.59, lng: -60.95, ha: 1600 },
+    { name: 'Rojas',               prov: 'Buenos Aires',  lat: -34.20, lng: -60.73, ha: 870  },
+    { name: 'Salto',               prov: 'Buenos Aires',  lat: -34.29, lng: -60.25, ha: 0    },
+    { name: 'Colón',               prov: 'Buenos Aires',  lat: -33.89, lng: -61.10, ha: 0    },
+    { name: 'Marcos Juárez',       prov: 'Córdoba',       lat: -32.69, lng: -62.10, ha: 950  },
+    { name: 'Unión',               prov: 'Córdoba',       lat: -32.87, lng: -62.90, ha: 1100 },
+    { name: 'Río Cuarto',          prov: 'Córdoba',       lat: -33.13, lng: -64.35, ha: 640  },
+    { name: 'General San Martín',  prov: 'Córdoba',       lat: -31.53, lng: -63.25, ha: 0    },
+    { name: 'Tercero Arriba',      prov: 'Córdoba',       lat: -32.18, lng: -63.65, ha: 0    },
+    { name: 'General López',       prov: 'Santa Fe',      lat: -33.68, lng: -61.72, ha: 2550 },
+    { name: 'Caseros',             prov: 'Santa Fe',      lat: -33.05, lng: -61.17, ha: 0    },
+    { name: 'Constitución',        prov: 'Santa Fe',      lat: -33.23, lng: -60.50, ha: 1400 },
+    { name: 'Belgrano',            prov: 'Santa Fe',      lat: -32.62, lng: -61.50, ha: 0    },
+    { name: 'Iriondo',             prov: 'Santa Fe',      lat: -32.62, lng: -61.03, ha: 0    },
+    { name: 'Paraná',              prov: 'Entre Ríos',    lat: -31.73, lng: -60.53, ha: 520  },
+    { name: 'Diamante',            prov: 'Entre Ríos',    lat: -32.06, lng: -60.64, ha: 0    },
+    { name: 'Victoria',            prov: 'Entre Ríos',    lat: -32.62, lng: -60.15, ha: 0    },
+    { name: 'Gualeguaychú',        prov: 'Entre Ríos',    lat: -33.01, lng: -59.32, ha: 0    },
+    { name: 'Quemú Quemú',         prov: 'La Pampa',      lat: -36.05, lng: -63.57, ha: 3100 },
+    { name: 'Maracó',              prov: 'La Pampa',      lat: -35.67, lng: -63.75, ha: 0    },
+    { name: 'Catriló',             prov: 'La Pampa',      lat: -36.37, lng: -63.42, ha: 0    }
+  ];
+
+  // Tile providers
+  const TILES = {
+    terrain: {
+      url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      opts: {
+        maxZoom: 17,
+        attribution: '© <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
+      }
+    },
+    satellite: {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      opts: {
+        maxZoom: 18,
+        attribution: '© <a href="https://www.esri.com">Esri</a> — World Imagery'
+      }
+    },
+    osm: {
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      opts: {
+        maxZoom: 19,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }
+    }
+  };
+
+  function findNearestDept(lat, lng) {
+    let best = null, bestDist = Infinity;
+    for (const d of DEPTS) {
+      const dist = Math.sqrt((d.lat - lat) ** 2 + (d.lng - lng) ** 2);
+      if (dist < bestDist && dist < 1.5) {
+        bestDist = dist;
+        best = d;
+      }
+    }
+    return best;
+  }
+
+  function findProvByDept(deptName) {
+    const d = DEPTS.find(x => x.name === deptName);
+    return d ? d.prov : null;
+  }
+
+  function haToRadius(ha) {
+    // Scale: 500ha → ~8000m, 3000ha → ~20000m
+    if (!ha || ha === 0) return 5000;
+    return Math.max(6000, Math.min(25000, Math.sqrt(ha) * 400));
+  }
+
+  function render() {
+    const container = document.getElementById('geoMap');
+    if (!container || !window.L) return;
+
+    // Center on the pampa húmeda
+    map = L.map(container, {
+      center: [-33.5, -61.5],
+      zoom: 7,
+      minZoom: 5,
+      maxZoom: 15,
+      zoomControl: true
+    });
+
+    // Create tile layers
+    for (const [key, cfg] of Object.entries(TILES)) {
+      tileLayers[key] = L.tileLayer(cfg.url, cfg.opts);
+    }
+    tileLayers.terrain.addTo(map);
+
+    // Add department circles
+    const maxHa = Math.max(...DEPTS.map(d => d.ha || 0), 1);
+    DEPTS.forEach(d => {
+      const color = PROV_COLORS[d.prov] || { fill: '#999', stroke: '#666' };
+      const hasData = d.ha > 0;
+      const radius = haToRadius(d.ha);
+
+      const circle = L.circle([d.lat, d.lng], {
+        radius: hasData ? radius : 5000,
+        fillColor: color.fill,
+        fillOpacity: hasData ? 0.2 : 0.08,
+        color: color.stroke,
+        weight: hasData ? 2 : 1,
+        dashArray: hasData ? null : '4,4'
+      }).addTo(map);
+
+      // Popup
+      const haLabel = hasData ? fmt.ha(d.ha) : 'Sin datos';
+      circle.bindPopup(`
+        <div class="dept-popup">
+          <strong>${d.name}</strong><br>
+          <span class="dept-popup__prov">${d.prov}</span><br>
+          Superficie: ${haLabel}
+        </div>
+      `, { closeButton: false, offset: [0, -5] });
+
+      circle.on('mouseover', function() {
+        this.setStyle({ fillOpacity: hasData ? 0.4 : 0.15, weight: hasData ? 3 : 1.5 });
+        this.openPopup();
+      });
+      circle.on('mouseout', function() {
+        this.setStyle({ fillOpacity: hasData ? 0.2 : 0.08, weight: hasData ? 2 : 1 });
+        this.closePopup();
+      });
+
+      // Label
+      const label = L.marker([d.lat, d.lng], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="
+            font-size:10px;
+            font-weight:${hasData ? '600' : '400'};
+            color:${hasData ? color.stroke : '#888'};
+            white-space:nowrap;
+            text-shadow:0 0 3px white,0 0 5px white,0 0 8px white;
+            pointer-events:none;
+            transform:translate(-50%,-50%);
+            font-family:Segoe UI,Arial,sans-serif;
+          ">${d.name}</div>`,
+          iconSize: [0, 0]
+        }),
+        interactive: false
+      }).addTo(map);
+
+      deptCircles.push({ circle, label, dept: d });
+    });
+
+    // Click to place pin
+    map.on('click', (e) => {
+      placePin(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Tile switcher
+    document.querySelectorAll('.geomap-tiles__btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.tile;
+        if (key === currentTileKey) return;
+        map.removeLayer(tileLayers[currentTileKey]);
+        tileLayers[key].addTo(map);
+        currentTileKey = key;
+        document.querySelectorAll('.geomap-tiles__btn').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+      });
+    });
+
+    // Build legend from province colors
+    const legendEl = document.getElementById('geoLegend');
+    if (legendEl) {
+      legendEl.innerHTML = Object.entries(PROV_COLORS).map(([name, c]) =>
+        `<div class="geomap-legend__item"><div class="geomap-legend__swatch" style="background:${c.fill}"></div>${name}</div>`
+      ).join('');
+    }
+
+    // Buttons
+    document.getElementById('btnClearPin')?.addEventListener('click', clearPin);
+    document.getElementById('btnUsePin')?.addEventListener('click', usePinAsFilter);
+  }
+
+  // Custom pin icon (SVG data URI)
+  const PIN_ICON = L.icon({
+    iconUrl: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
+        <defs>
+          <filter id="s" x="-20%" y="-10%" width="140%" height="130%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".3"/>
+          </filter>
+        </defs>
+        <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#c62828" filter="url(#s)"/>
+        <circle cx="14" cy="13" r="5.5" fill="white"/>
+        <circle cx="14" cy="13" r="2.5" fill="#c62828"/>
+      </svg>
+    `),
+    iconSize: [28, 40],
+    iconAnchor: [14, 40],
+    popupAnchor: [0, -35]
+  });
+
+  function placePin(lat, lng) {
+    // Remove existing pin
+    if (pinMarker) map.removeLayer(pinMarker);
+
+    pinMarker = L.marker([lat, lng], { icon: PIN_ICON, draggable: true })
+      .addTo(map)
+      .bindPopup(`<div class="dept-popup"><strong>${lat.toFixed(4)}°, ${lng.toFixed(4)}°</strong></div>`, { closeButton: false });
+
+    // Draggable → update on move
+    pinMarker.on('dragend', () => {
+      const pos = pinMarker.getLatLng();
+      updatePinPanel(pos.lat, pos.lng);
+    });
+
+    updatePinPanel(lat, lng);
+  }
+
+  function updatePinPanel(lat, lng) {
+    document.getElementById('pinEmpty').style.display = 'none';
+    document.getElementById('pinData').style.display = '';
+    document.getElementById('pinLat').textContent = lat.toFixed(6) + '°';
+    document.getElementById('pinLng').textContent = lng.toFixed(6) + '°';
+
+    const dept = findNearestDept(lat, lng);
+    document.getElementById('pinProv').textContent = dept ? dept.prov : 'Fuera de cobertura';
+    document.getElementById('pinDept').textContent = dept ? dept.name : '—';
+  }
+
+  function clearPin() {
+    if (pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
+    document.getElementById('pinEmpty').style.display = '';
+    document.getElementById('pinData').style.display = 'none';
+  }
+
+  function usePinAsFilter() {
+    if (!pinMarker) return;
+    const pos = pinMarker.getLatLng();
+    const dept = findNearestDept(pos.lat, pos.lng);
+    if (!dept) return;
+
+    const fProv = document.getElementById('fProv');
+    const provOpt = Array.from(fProv.options).find(o => o.value === dept.prov);
+    if (provOpt) {
+      fProv.value = dept.prov;
+      fProv.dispatchEvent(new Event('change'));
+      setTimeout(() => {
+        const fDept = document.getElementById('fDept');
+        const deptOpt = Array.from(fDept.options).find(o => o.value === dept.name);
+        if (deptOpt) fDept.value = dept.name;
+      }, 50);
+    }
+  }
+
+  // Public: highlight a dept circle when filter changes
+  function highlightDept(deptName) {
+    deptCircles.forEach(({ circle, dept }) => {
+      if (dept.name === deptName) {
+        circle.setStyle({ fillOpacity: 0.45, weight: 3 });
+        map.flyTo([dept.lat, dept.lng], 9, { duration: 0.8 });
+      } else {
+        const hasData = dept.ha > 0;
+        circle.setStyle({ fillOpacity: hasData ? 0.2 : 0.08, weight: hasData ? 2 : 1 });
+      }
+    });
+  }
+
+  return { render, placePin, clearPin, highlightDept };
+})();
+
+
+/* =====================================================================
+   6. UI CONTROLLER
+   ===================================================================== */
+
+const UI = {
+  state: { prov: '', dept: '', lots: [], analysis: null },
+
+  els: {},
+
+  init() {
+    // Cache DOM refs
+    this.els = {
+      fProv:     $('#fProv'),
+      fDept:     $('#fDept'),
+      fCrop:     $('#fCrop'),
+      filterMsg: $('#filterMsg'),
+      empty:     $('#stateEmpty'),
+      loading:   $('#stateLoading'),
+      results:   $('#stateResults'),
+      modal:     $('#modalMethod')
+    };
+
+    // Bind dates
+    const d = fmt.date(META.lastUpdate);
+    $$('[data-bind="date"]').forEach(el => el.textContent = d);
+
+    // Populate province select
+    REGIONS.forEach(r => {
+      const o = document.createElement('option');
+      o.value = o.textContent = r.province;
+      this.els.fProv.appendChild(o);
+    });
+
+    // Populate crop filter
+    for (const [k, c] of Object.entries(CROPS)) {
+      const o = document.createElement('option');
+      o.value = k;
+      o.textContent = c.label;
+      this.els.fCrop.appendChild(o);
+    }
+
+    // Events
+    this.els.fProv.addEventListener('change', () => this.onProvChange());
+    $('#btnRun').addEventListener('click', () => this.onAnalyze());
+    $('#btnClear').addEventListener('click', () => this.onClear());
+    $('#btnMethod')?.addEventListener('click', () => this.toggleModal(true));
+    $('#btnCloseModal')?.addEventListener('click', () => this.toggleModal(false));
+    this.els.modal?.addEventListener('click', e => {
+      if (e.target.classList.contains('modal-bg')) this.toggleModal(false);
+    });
+    $$('.tab-btn').forEach(btn =>
+      btn.addEventListener('click', () => this.switchTab(btn.dataset.tab))
+    );
+
+    // Demo mode
+    if (META.demoMode) {
+      setTimeout(() => {
+        this.els.fProv.value = 'Córdoba';
+        this.onProvChange();
+        setTimeout(() => { this.els.fDept.value = 'Marcos Juárez'; this.onAnalyze(); }, 300);
+      }, 400);
+    }
+
+    // Initialize geo reference map
+    GeoMap.render();
+  },
+
+  // ---- Filter handlers ----
+  onProvChange() {
+    const prov = this.els.fProv.value;
+    this.state.prov = prov;
+    const sd = this.els.fDept;
+    sd.innerHTML = '<option value="">Seleccionar departamento...</option>';
+
+    const reg = REGIONS.find(r => r.province === prov);
+    if (reg) {
+      reg.departments.forEach(d => {
+        const o = document.createElement('option');
+        o.value = o.textContent = d;
+        sd.appendChild(o);
+      });
+      sd.disabled = false;
+    } else {
+      sd.disabled = true;
+    }
+    this.hideMsg();
+  },
+
+  onAnalyze() {
+    this.state.prov = this.els.fProv.value;
+    this.state.dept = this.els.fDept.value;
+    const cropF = this.els.fCrop.value;
+
+    if (!this.state.prov) {
+      this.showMsg('Seleccione una provincia para continuar con el análisis.');
+      return;
+    }
+    this.hideMsg();
+
+    let lots = this.state.dept
+      ? getLotsForDept(this.state.dept)
+      : getLotsForProv(this.state.prov);
+
+    if (cropF !== 'all') lots = lots.filter(l => l.cur === cropF);
+
+    if (!lots.length) {
+      this.showEmptyState('Sin resultados para la selección', 'No se encontraron lotes activos con los filtros aplicados. Intente modificar la provincia, departamento o cultivo.');
+      return;
+    }
+    if (lots.reduce((s, l) => s + l.ha, 0) < 50) {
+      this.showMsg('El área seleccionada es demasiado pequeña para un análisis significativo (mínimo 50 ha).');
+      return;
+    }
+
+    this.state.lots = lots;
+    this.showLoading();
+
+    setTimeout(() => {
+      this.state.analysis = analyze(lots);
+      this.hideLoading();
+      this.renderAll();
+    }, META.demoMode ? 500 : 1100);
+  },
+
+  onClear() {
+    this.els.fProv.value = '';
+    this.els.fDept.innerHTML = '<option value="">Seleccionar departamento...</option>';
+    this.els.fDept.disabled = true;
+    $('#fCampaign').value = '2025/26';
+    this.els.fCrop.value = 'all';
+    this.state = { prov: '', dept: '', lots: [], analysis: null };
+    this.els.results.style.display = 'none';
+    this.showEmptyState('Seleccione un área de análisis', 'Elija una provincia y departamento para visualizar la estimación de oportunidad con datos históricos, actuales y proyectados.');
+    this.hideMsg();
+  },
+
+  // ---- Full render ----
+  renderAll() {
+    const { analysis: a, lots, prov, dept } = this.state;
+    this.els.empty.style.display = 'none';
+    this.els.results.style.display = '';
+
+    Render.kpis(a, dept, prov);
+    Render.periodTable('tblHist', a, 'historical', dept);
+    Render.periodTable('tblCurr', a, 'current', dept);
+    Render.periodTable('tblProj', a, 'projected', dept);
+    Render.chart(a);
+    Render.compTable(a);
+    Render.map(lots);
+    Render.areaInfo(a, prov, dept);
+    Render.insights(generateInsights(a, lots, dept));
+    this.switchTab('hist');
+
+    // Fly map to selected department
+    if (dept) GeoMap.highlightDept(dept);
+  },
+
+  // ---- UI state helpers ----
+  showMsg(msg) {
+    this.els.filterMsg.textContent = msg;
+    this.els.filterMsg.style.display = 'block';
+  },
+  hideMsg() {
+    this.els.filterMsg.style.display = 'none';
+  },
+  showLoading() {
+    this.els.empty.style.display = 'none';
+    this.els.results.style.display = 'none';
+    this.els.loading.style.display = '';
+  },
+  hideLoading() {
+    this.els.loading.style.display = 'none';
+  },
+  showEmptyState(title, text) {
+    this.els.loading.style.display = 'none';
+    this.els.results.style.display = 'none';
+    this.els.empty.style.display = '';
+    this.els.empty.querySelector('.empty__title').textContent = title;
+    this.els.empty.querySelector('.empty__text').textContent = text;
+  },
+
+  // ---- Tabs ----
+  switchTab(id) {
+    $$('.tab-btn').forEach(t => t.classList.toggle('is-active', t.dataset.tab === id));
+    $$('.tab-panel').forEach(p => p.classList.toggle('is-active', p.id === 'p-' + id));
+  },
+
+  // ---- Modal ----
+  toggleModal(show) {
+    this.els.modal.classList.toggle('is-open', show);
+  }
+};
+
+
+/* =====================================================================
+   7. BOOTSTRAP
+   ===================================================================== */
+document.addEventListener('DOMContentLoaded', () => UI.init());
+
+})();
+</script>
+  <div class="bold-back-bar">
+    <a href="index.html" class="bold-back-bar__link">
+      <span class="bold-back-bar__chev">&lt;</span> Volver a la suite BoldOS
+    </a>
+    <span class="bold-back-bar__motto">El dato es <em>nuestro faro</em></span>
+  </div>
+
+</body>
+</html>

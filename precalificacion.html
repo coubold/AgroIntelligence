@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoldOS · Precalificación Crediticia</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+/* ============================================================
+   SUITE AGRO INTELLIGENCE — DESIGN SYSTEM
+   ============================================================
+   Identidad: corporativa, sobria, premium, agroindustrial.
+   Paleta Cargill-like: verdes profundos, grises, señales claras.
+   
+   Reutilizable en todos los módulos de la suite.
+   ============================================================ */
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  /* --- Greens --- */
+  --green-900:#1a3a2a; --green-800:#1f4d35; --green-700:#266040;
+  --green-600:#2e7d4f; --green-500:#3a9d63; --green-400:#5cb87a;
+  --green-100:#dff0e4; --green-50:#f0f8f2;
+
+  /* --- Neutrals --- */
+  --n900:#1a1a1a; --n800:#2d2d2d; --n700:#444; --n600:#5a5a5a;
+  --n500:#777; --n400:#999; --n300:#b3b3b3; --n200:#d4d4d4;
+  --n150:#e0e0e0; --n100:#eee; --n50:#f7f7f7; --white:#fff;
+
+  /* --- Signals --- */
+  --sig-green:#2e7d32; --sig-yellow:#f9a825; --sig-orange:#ef6c00;
+  --sig-red:#c62828; --sig-gray:#9e9e9e;
+  --sig-green-bg:#e8f5e9; --sig-yellow-bg:#fff8e1;
+  --sig-orange-bg:#fff3e0; --sig-red-bg:#ffebee; --sig-gray-bg:#f5f5f5;
+
+  /* --- Accent --- */
+  --accent-blue:#1565c0; --accent-blue-lt:#e3f2fd;
+
+  /* --- Typography --- */
+  --font:'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  --mono:'Consolas','Monaco','Courier New',monospace;
+
+  /* --- Spacing --- */
+  --sp-xs:4px; --sp-sm:8px; --sp-md:16px; --sp-lg:24px; --sp-xl:32px; --sp-2xl:48px;
+
+  /* --- Radius --- */
+  --r-sm:4px; --r-md:6px; --r-lg:8px; --r-xl:12px;
+
+  /* --- Shadows --- */
+  --sh-sm:0 1px 3px rgba(0,0,0,.08);
+  --sh-md:0 2px 8px rgba(0,0,0,.10);
+  --sh-lg:0 4px 16px rgba(0,0,0,.12);
+
+  /* --- Transitions --- */
+  --tr-fast:150ms ease; --tr-norm:250ms ease;
+}
+
+html { font-size:14px; }
+body {
+  font-family:var(--font); color:var(--n800);
+  background:var(--n50); line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.suite-header {
+  background:var(--green-900); color:var(--white);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 var(--sp-lg); height:56px;
+  position:sticky; top:0; z-index:100;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.suite-header__brand { display:flex; align-items:center; gap:var(--sp-sm); font-size:1.15rem; font-weight:600; letter-spacing:.02em; }
+.suite-header__brand svg { width:28px; height:28px; }
+.hdr__nav { display:flex; gap:var(--sp-lg); align-items:center; }
+.hdr__nav a,
+.hdr__nav span { color:rgba(255,255,255,.55); text-decoration:none; font-size:.85rem; transition:color var(--tr-fast); cursor:pointer; }
+.hdr__nav a:hover,
+.hdr__nav span:hover { color:var(--white); }
+.hdr__nav .is-active { color:var(--white)!important; font-weight:600; }
+.suite-header__meta { font-size:.78rem; color:rgba(255,255,255,.5); display:flex; gap:var(--sp-md); align-items:center; }
+
+/* ============================================================
+   BREADCRUMB
+   ============================================================ */
+.breadcrumb { padding:var(--sp-sm) var(--sp-lg); font-size:.8rem; color:var(--n500); background:var(--white); border-bottom:1px solid var(--n150); }
+.breadcrumb a { color:var(--green-700); text-decoration:none; }
+.breadcrumb a:hover { text-decoration:underline; }
+.breadcrumb .sep { margin:0 var(--sp-xs); }
+
+/* ============================================================
+   MAIN CONTAINER
+   ============================================================ */
+.suite-main { padding:var(--sp-lg); max-width:1440px; margin:0 auto; }
+
+/* ============================================================
+   CARD
+   ============================================================ */
+.card {
+  background:var(--white); border:1px solid var(--n150);
+  border-radius:var(--r-lg); box-shadow:var(--sh-sm);
+  padding:var(--sp-lg); margin-bottom:var(--sp-md);
+  transition:box-shadow var(--tr-norm);
+}
+.card:hover { box-shadow:var(--sh-md); }
+.card__title {
+  font-size:.95rem; font-weight:600; color:var(--n800);
+  margin-bottom:var(--sp-md); display:flex; align-items:center; gap:var(--sp-sm);
+}
+
+/* ============================================================
+   KPI ROW
+   ============================================================ */
+.kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--sp-md); margin-bottom:var(--sp-lg); }
+.kpi {
+  background:var(--white); border:1px solid var(--n150);
+  border-radius:var(--r-lg); padding:var(--sp-md) var(--sp-lg);
+  box-shadow:var(--sh-sm); position:relative; overflow:hidden;
+}
+.kpi::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--green-600); }
+.kpi--warn::before { background:var(--sig-yellow); }
+.kpi--danger::before { background:var(--sig-red); }
+.kpi--info::before { background:var(--accent-blue); }
+.kpi__label { font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--n500); margin-bottom:var(--sp-xs); }
+.kpi__value { font-size:1.6rem; font-weight:700; color:var(--n900); line-height:1.2; }
+.kpi__detail { font-size:.78rem; color:var(--n400); margin-top:var(--sp-xs); }
+.kpi__delta { font-size:.8rem; font-weight:600; margin-top:var(--sp-xs); }
+.kpi__delta--up { color:var(--sig-green); }
+.kpi__delta--down { color:var(--sig-red); }
+
+/* ============================================================
+   TABS
+   ============================================================ */
+.tabs { display:flex; gap:0; border-bottom:2px solid var(--n150); margin-bottom:var(--sp-lg); }
+.tabs__tab {
+  padding:var(--sp-sm) var(--sp-lg); font-size:.85rem; font-weight:500;
+  color:var(--n500); cursor:pointer; border:none;
+  border-bottom:2px solid transparent; margin-bottom:-2px;
+  transition:all var(--tr-fast); background:none; font-family:var(--font);
+}
+.tabs__tab:hover { color:var(--green-700); }
+.tabs__tab--active { color:var(--green-800); border-bottom-color:var(--green-700); font-weight:600; }
+.tab-content { display:none; }
+.tab-content--active { display:block; }
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+.data-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+.data-table thead th {
+  background:var(--n50); text-align:left;
+  padding:var(--sp-sm) var(--sp-md); font-weight:600; color:var(--n700);
+  border-bottom:2px solid var(--n200); font-size:.78rem;
+  text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;
+}
+.data-table tbody tr { border-bottom:1px solid var(--n100); transition:background var(--tr-fast); }
+.data-table tbody tr:hover { background:var(--green-50); }
+.data-table tbody td { padding:var(--sp-sm) var(--sp-md); vertical-align:middle; }
+.data-table .num { text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:.82rem; }
+
+/* ============================================================
+   BADGES
+   ============================================================ */
+.badge {
+  display:inline-flex; align-items:center; gap:var(--sp-xs);
+  padding:2px 10px; border-radius:20px; font-size:.75rem; font-weight:600; white-space:nowrap;
+}
+.badge--green  { background:var(--sig-green-bg); color:var(--sig-green); }
+.badge--yellow { background:var(--sig-yellow-bg); color:#f57f17; }
+.badge--orange { background:var(--sig-orange-bg); color:var(--sig-orange); }
+.badge--red    { background:var(--sig-red-bg);    color:var(--sig-red); }
+.badge--gray   { background:var(--sig-gray-bg);   color:var(--n600); }
+.badge--blue   { background:var(--accent-blue-lt); color:var(--accent-blue); }
+
+/* ============================================================
+   FORMS
+   ============================================================ */
+.form-group { margin-bottom:var(--sp-md); }
+.form-label {
+  display:block; font-size:.78rem; font-weight:600; color:var(--n700);
+  margin-bottom:var(--sp-xs); text-transform:uppercase; letter-spacing:.04em;
+}
+.form-select,
+.form-input {
+  width:100%; padding:var(--sp-sm) var(--sp-md);
+  border:1px solid var(--n200); border-radius:var(--r-md);
+  font-size:.9rem; font-family:var(--font); color:var(--n800);
+  background:var(--white);
+  transition:border-color var(--tr-fast),box-shadow var(--tr-fast);
+}
+.form-select:focus,
+.form-input:focus { outline:none; border-color:var(--green-600); box-shadow:0 0 0 3px rgba(46,125,79,.12); }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+  display:inline-flex; align-items:center; gap:var(--sp-sm);
+  padding:var(--sp-sm) var(--sp-lg); border-radius:var(--r-md);
+  font-size:.85rem; font-weight:600; font-family:var(--font);
+  cursor:pointer; border:none; transition:all var(--tr-fast);
+}
+.btn--primary { background:var(--green-700); color:var(--white); }
+.btn--primary:hover { background:var(--green-800); box-shadow:var(--sh-md); }
+.btn--secondary { background:var(--white); color:var(--green-700); border:1px solid var(--green-700); }
+.btn--secondary:hover { background:var(--green-50); }
+.btn--sm { padding:var(--sp-xs) var(--sp-md); font-size:.78rem; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+
+/* ============================================================
+   LOADING
+   ============================================================ */
+.loading-overlay { display:flex; align-items:center; justify-content:center; padding:var(--sp-2xl); }
+.loading-spinner { width:36px; height:36px; border:3px solid var(--n200); border-top-color:var(--green-700); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty-state { text-align:center; padding:var(--sp-2xl) var(--sp-lg); color:var(--n400); }
+.empty-state__icon { font-size:2.5rem; margin-bottom:var(--sp-md); opacity:.4; }
+.empty-state__title { font-size:1rem; font-weight:600; color:var(--n600); margin-bottom:var(--sp-sm); }
+.empty-state__text { font-size:.85rem; max-width:400px; margin:0 auto; }
+
+/* ============================================================
+   INSIGHTS
+   ============================================================ */
+.insights { background:var(--green-50); border-left:4px solid var(--green-600); border-radius:var(--r-md); padding:var(--sp-md) var(--sp-lg); margin:var(--sp-md) 0; }
+.insights__title { font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--green-800); margin-bottom:var(--sp-sm); }
+.insights__item { font-size:.85rem; color:var(--n700); padding:var(--sp-xs) 0 var(--sp-xs) var(--sp-md); position:relative; }
+.insights__item::before { content:'›'; position:absolute; left:0; color:var(--green-600); font-weight:bold; }
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; }
+.modal-backdrop--open { display:flex; }
+.modal { background:var(--white); border-radius:var(--r-xl); padding:var(--sp-xl); max-width:680px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:var(--sh-lg); }
+.modal__header { display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-lg); }
+.modal__title { font-size:1.1rem; font-weight:700; color:var(--n900); }
+.modal__close { background:none; border:none; font-size:1.4rem; color:var(--n400); cursor:pointer; }
+.modal__close:hover { color:var(--n700); }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.suite-footer { text-align:center; padding:var(--sp-lg); font-size:.75rem; color:var(--n400); border-top:1px solid var(--n150); margin-top:var(--sp-xl); }
+/* ============================================================
+   PROTO 2 — PRECALIFICACIÓN CREDITICIA AGRONÓMICA
+   Estilos específicos del módulo.
+   Depende de: design-system.css
+   ============================================================ */
+
+/* ---- Search box ---- */
+.search-container { position:relative; max-width:560px; }
+.search-container input {
+  width:100%; padding:12px 16px 12px 44px;
+  border:2px solid var(--n200); border-radius:var(--r-lg);
+  font-size:1rem; font-family:var(--font);
+  transition:border-color var(--tr-fast),box-shadow var(--tr-fast);
+}
+.search-container input:focus { outline:none; border-color:var(--green-600); box-shadow:0 0 0 3px rgba(46,125,79,.12); }
+.search-container .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--n400); }
+.search-dropdown {
+  position:absolute; top:calc(100% + 4px); left:0; right:0;
+  background:var(--white); border:1px solid var(--n200);
+  border-radius:var(--r-lg); box-shadow:var(--sh-lg);
+  max-height:320px; overflow-y:auto; z-index:50; display:none;
+}
+.search-dropdown--open { display:block; }
+.search-dropdown__item { padding:12px 16px; cursor:pointer; border-bottom:1px solid var(--n100); transition:background var(--tr-fast); }
+.search-dropdown__item:last-child { border-bottom:none; }
+.search-dropdown__item:hover { background:var(--green-50); }
+.search-dropdown__name { font-weight:600; color:var(--n800); font-size:.9rem; }
+.search-dropdown__meta { font-size:.78rem; color:var(--n500); margin-top:2px; }
+.search-dropdown__empty { padding:16px; text-align:center; color:var(--n400); font-size:.85rem; }
+
+/* ---- Client header ---- */
+.client-header { display:flex; align-items:center; gap:var(--sp-lg); margin-bottom:var(--sp-lg); padding-bottom:var(--sp-lg); border-bottom:1px solid var(--n150); }
+.client-avatar { width:56px; height:56px; border-radius:50%; background:var(--green-100); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.client-avatar svg { width:28px; height:28px; color:var(--green-700); }
+.client-info { flex:1; }
+.client-info__name { font-size:1.2rem; font-weight:700; color:var(--n900); }
+.client-info__meta { font-size:.82rem; color:var(--n500); margin-top:2px; }
+.client-info__tags { display:flex; gap:var(--sp-sm); margin-top:var(--sp-sm); flex-wrap:wrap; }
+
+/* ---- Score card ---- */
+.score-card { text-align:center; padding:var(--sp-lg); border-radius:var(--r-lg); border:2px solid var(--n200); position:relative; }
+.score-card--favorable { border-color:var(--sig-green); background:linear-gradient(135deg,#f0faf2,#e8f5e9); }
+.score-card--revision  { border-color:var(--sig-yellow); background:linear-gradient(135deg,#fffcf0,#fff8e1); }
+.score-card--observada { border-color:var(--sig-red); background:linear-gradient(135deg,#fff5f5,#ffebee); }
+.score-ring { width:120px; height:120px; margin:0 auto var(--sp-md); position:relative; }
+.score-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+.score-ring__value { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:800; color:var(--n900); }
+.score-card__label { font-size:1rem; font-weight:700; margin-bottom:var(--sp-xs); }
+.score-card__sublabel { font-size:.82rem; color:var(--n500); }
+
+/* ---- Semáforo grid ---- */
+.semaforo-grid { display:flex; flex-direction:column; gap:var(--sp-sm); }
+.semaforo-item { display:flex; align-items:center; gap:var(--sp-md); padding:10px var(--sp-md); border:1px solid var(--n100); border-radius:var(--r-md); background:var(--white); }
+.semaforo-lights { display:flex; gap:5px; flex-shrink:0; }
+.semaforo-light { width:14px; height:14px; border-radius:50%; border:1.5px solid var(--n200); background:var(--n50); transition:all .3s ease; }
+.semaforo-light--r { border-color:rgba(198,40,40,.25); }
+.semaforo-light--y { border-color:rgba(249,168,37,.25); }
+.semaforo-light--g { border-color:rgba(46,125,50,.25); }
+.semaforo-light--r.lit { background:var(--sig-red);    border-color:var(--sig-red);    box-shadow:0 0 8px rgba(198,40,40,.5); }
+.semaforo-light--y.lit { background:var(--sig-yellow); border-color:var(--sig-yellow); box-shadow:0 0 8px rgba(249,168,37,.5); }
+.semaforo-light--g.lit { background:var(--sig-green);  border-color:var(--sig-green);  box-shadow:0 0 8px rgba(46,125,50,.5); }
+.semaforo-label { font-size:.82rem; color:var(--n700); flex:1; }
+.semaforo-value { font-size:.78rem; font-weight:600; white-space:nowrap; }
+
+/* ---- Temporal columns ---- */
+.temporal-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--sp-md); }
+@media(max-width:1000px) { .temporal-grid { grid-template-columns:1fr; } }
+.temporal-col { border:1px solid var(--n150); border-radius:var(--r-lg); overflow:hidden; }
+.temporal-col__header { padding:var(--sp-sm) var(--sp-md); font-weight:600; font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; text-align:center; }
+.temporal-col__header--past    { background:var(--n100);          color:var(--n600); }
+.temporal-col__header--present { background:var(--green-100);     color:var(--green-800); }
+.temporal-col__header--future  { background:var(--accent-blue-lt); color:var(--accent-blue); }
+.temporal-col__body { padding:var(--sp-md); }
+.temporal-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--n100); font-size:.82rem; }
+.temporal-row:last-child { border-bottom:none; }
+.temporal-row__label { color:var(--n600); }
+.temporal-row__value { font-weight:600; color:var(--n800); font-family:var(--mono); font-size:.8rem; }
+
+/* ---- Factors ---- */
+.factor-list { display:flex; flex-direction:column; gap:var(--sp-sm); }
+.factor-item { display:flex; align-items:flex-start; gap:var(--sp-sm); padding:var(--sp-sm) var(--sp-md); background:var(--n50); border-radius:var(--r-md); border-left:3px solid var(--n300); }
+.factor-item--positive { border-left-color:var(--sig-green); background:var(--sig-green-bg); }
+.factor-item--negative { border-left-color:var(--sig-red);   background:var(--sig-red-bg); }
+.factor-item--neutral  { border-left-color:var(--sig-yellow); background:var(--sig-yellow-bg); }
+.factor-item__icon { font-size:.9rem; margin-top:1px; flex-shrink:0; }
+.factor-item__text { font-size:.82rem; color:var(--n700); line-height:1.4; }
+
+/* ---- Benchmark bars ---- */
+.bm-bar { margin-bottom:var(--sp-md); }
+.bm-bar__header { display:flex; justify-content:space-between; font-size:.78rem; margin-bottom:var(--sp-xs); }
+.bm-bar__label { color:var(--n600); }
+.bm-bar__values { font-weight:600; color:var(--n800); }
+.bm-bar__track { height:8px; background:var(--n100); border-radius:4px; position:relative; overflow:visible; }
+.bm-bar__fill { height:100%; border-radius:4px; transition:width .6s ease; }
+.bm-bar__marker { position:absolute; top:-4px; width:3px; height:16px; background:var(--n700); border-radius:2px; }
+
+/* ---- Risk/Opportunity blocks ---- */
+.ro-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-md); }
+@media(max-width:800px) { .ro-grid { grid-template-columns:1fr; } }
+.ro-block { border:1px solid var(--n150); border-radius:var(--r-lg); overflow:hidden; }
+.ro-block__header { padding:var(--sp-sm) var(--sp-md); font-size:.82rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.ro-block__header--risk { background:var(--sig-red-bg);   color:var(--sig-red); }
+.ro-block__header--opp  { background:var(--sig-green-bg); color:var(--sig-green); }
+.ro-block__body { padding:var(--sp-md); }
+.ro-item { font-size:.82rem; color:var(--n700); padding:var(--sp-xs) 0 var(--sp-xs) var(--sp-md); position:relative; }
+.ro-item::before { content:'•'; position:absolute; left:0; font-weight:bold; }
+.ro-item--risk::before { color:var(--sig-red); }
+.ro-item--opp::before  { color:var(--sig-green); }
+
+/* ---- Two-column layout ---- */
+.layout-2col { display:grid; grid-template-columns:340px 1fr; gap:var(--sp-lg); }
+@media(max-width:1100px) { .layout-2col { grid-template-columns:1fr; } }
+
+/* ---- Success toast ---- */
+.success-toast { display:none; background:var(--sig-green-bg); border:1px solid var(--sig-green); color:var(--sig-green); padding:var(--sp-md) var(--sp-lg); border-radius:var(--r-lg); font-size:.85rem; font-weight:500; margin-top:var(--sp-md); text-align:center; }
+
+/* ---- Method block (modal) ---- */
+.method-block { margin-bottom:var(--sp-md); padding:var(--sp-md); background:var(--green-50); border-radius:var(--r-md); font-size:.85rem; }
+.method-block strong { color:var(--green-800); font-size:.82rem; display:block; margin-bottom:var(--sp-xs); }
+.method-block p { color:var(--n600); line-height:1.5; }
+
+/* ---- Donut chart ---- */
+.donut-container { display:flex; flex-direction:column; align-items:center; justify-content:center; margin:var(--sp-md) 0; }
+
+/* ============================================================
+   GEO MAP COMPONENT
+   ============================================================ */
+.geomap-section { margin-bottom:var(--sp-md); }
+.geomap-grid { display:grid; grid-template-columns:1fr 320px; gap:var(--sp-md); }
+@media(max-width:1100px) { .geomap-grid { grid-template-columns:1fr; } }
+
+.geomap-container { position:relative; min-height:440px; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--n150); z-index:0; }
+.geomap-hint {
+  position:absolute; top:10px; right:10px; z-index:500;
+  background:rgba(26,26,26,.7); color:var(--white);
+  padding:4px 10px; border-radius:var(--r-sm);
+  font-size:.72rem; pointer-events:none;
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+}
+
+.geomap-panel { display:flex; flex-direction:column; gap:var(--sp-md); }
+.geomap-pin-card {
+  background:var(--white); border:1px solid var(--n150);
+  border-radius:var(--r-lg); padding:var(--sp-md);
+  box-shadow:var(--sh-sm);
+}
+.geomap-pin-card__title { font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--n700); margin-bottom:var(--sp-sm); }
+.geomap-pin-card__empty { font-size:.82rem; color:var(--n400); line-height:1.5; }
+.geomap-pin-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-sm); }
+.geomap-pin-field__label { font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:var(--n500); margin-bottom:2px; }
+.geomap-pin-field__value { font-size:.85rem; font-weight:600; color:var(--n800); }
+.geomap-pin-field__value--mono { font-family:var(--mono); font-size:.82rem; }
+.geomap-pin-actions { display:flex; gap:var(--sp-sm); margin-top:var(--sp-md); }
+
+.geomap-legend {
+  background:var(--white); border:1px solid var(--n150);
+  border-radius:var(--r-lg); padding:var(--sp-md);
+  box-shadow:var(--sh-sm);
+}
+.geomap-legend__title { font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--n700); margin-bottom:var(--sp-sm); }
+.geomap-legend__items { display:flex; flex-wrap:wrap; gap:var(--sp-sm) var(--sp-md); }
+.geomap-legend__item { display:flex; align-items:center; gap:5px; font-size:.78rem; color:var(--n700); }
+.geomap-legend__swatch { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+.geomap-tiles { display:flex; gap:var(--sp-xs); margin-top:var(--sp-sm); }
+.geomap-tile-btn {
+  flex:1; padding:var(--sp-xs) var(--sp-sm);
+  border:1px solid var(--n200); border-radius:var(--r-sm);
+  font-size:.72rem; font-family:var(--font); font-weight:500;
+  color:var(--n600); background:var(--white);
+  cursor:pointer; text-align:center; transition:all var(--tr-fast);
+}
+.geomap-tile-btn:hover { border-color:var(--green-600); color:var(--green-700); }
+.geomap-tile-btn--active { background:var(--green-700); color:var(--white); border-color:var(--green-700); }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="assets/bold-chrome.css">
+</head>
+<body>
+
+  <!-- ============================================================
+       GUÍA DE DEMO — PRECALIFICACIÓN CREDITICIA (3-5 min)
+       ============================================================
+       1. Mostrar pantalla de búsqueda vacía (contexto)
+       2. Escribir "Agro" o "20-" → aparecen clientes
+       3. Seleccionar "Agropecuaria Los Alamos"
+       4. Recorrer scorecard y semáforos
+       5. Mostrar las 3 columnas: Pasado / Presente / Futuro
+       6. Señalar bloques de factores y riesgos/oportunidades
+       7. Mostrar benchmark zonal con barras
+       8. Abrir modal "Detalle del score"
+       9. Click en "Simular revisión" para ver la interacción
+      10. Cambiar a otro cliente con peor perfil → contrastar
+      11. Interactuar con el mapa: click para pin, cambiar tiles
+       ============================================================ -->
+
+  <!-- ======================== HEADER ======================== -->
+  <header class="bold-hdr">
+    <a href="index.html" class="bold-hdr__brand" aria-label="Ir al inicio">
+      <span class="bold-hdr__brand-mark">BOLD</span>
+      <span class="bold-hdr__brand-sep"></span>
+      <span class="bold-hdr__product">
+        <span class="bold-hdr__product-name">Precalificación Crediticia</span>
+        <span class="bold-hdr__product-tag">Scoring agronómico-financiero</span>
+      </span>
+    </a>
+    <nav class="bold-hdr__nav">
+      <a href="oportunidad.html">Oportunidad</a>
+      <a href="precalificacion.html" class="is-active">Precalificación</a>
+      <a href="info-agronomica.html">Info Agronómica</a>
+      <a href="cartera.html">Cartera</a>
+    </nav>
+    <div class="bold-hdr__meta">
+      <span class="bold-hdr__meta-pill">Campaña 2025/26</span>
+      <span data-bind="date" id="headerDate"></span>
+    </div>
+    <div class="bold-hdr__pulse"></div>
+  </header>
+
+  <!-- ======================== BREADCRUMB ======================== -->
+  <div class="breadcrumb">
+    <a href="index.html">Inicio</a><span class="sep">›</span>
+    <span id="bcModule">Precalificación Crediticia Agronómica</span>
+    <span class="sep" id="bcSep2" style="display:none">›</span>
+    <span id="bcDetail" style="display:none"></span>
+  </div>
+
+  <!-- ======================== MAIN ======================== -->
+  <main class="suite-main">
+
+    <!-- ---- SEARCH ---- -->
+    <section class="card" id="searchSection">
+      <div style="margin-bottom:var(--sp-md)">
+        <h2 style="font-size:1.05rem;font-weight:700;color:var(--n900)">Precalificación Crediticia Agronómica</h2>
+        <p style="color:var(--n500);font-size:.82rem;margin-top:4px">Evaluación enriquecida con inteligencia agronómica para decisiones tempranas de riesgo.</p>
+      </div>
+      <div style="display:flex;gap:var(--sp-md);align-items:end;flex-wrap:wrap">
+        <div class="search-container" style="flex:1;min-width:300px" id="searchBox">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 18 18"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="12" x2="16" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <input type="text" id="searchInput" placeholder="Buscar por razón social, CUIT o establecimiento..." autocomplete="off">
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;min-width:160px">
+          <label class="form-label" for="selCampana">Campaña</label>
+          <select class="form-select" id="selCampana">
+            <option value="2025/26">2025/26 (Actual)</option>
+            <option value="2024/25">2024/25</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- GEO MAP ---- -->
+    <section class="card geomap-section">
+      <div class="card__title">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1a5 5 0 0 0-5 5c0 3.5 5 9 5 9s5-5.5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" fill="var(--green-700)"/></svg>
+        Cobertura Territorial
+      </div>
+      <div class="geomap-grid">
+        <!-- Map -->
+        <div class="geomap-container">
+          <div class="geomap-hint">Click para marcar ubicación</div>
+          <div id="geomapMap" style="width:100%;height:100%;min-height:440px"></div>
+        </div>
+        <!-- Sidebar -->
+        <div class="geomap-panel">
+          <!-- Pin card -->
+          <div class="geomap-pin-card">
+            <div class="geomap-pin-card__title">Georeferencia</div>
+            <div id="geomapPinContent">
+              <div class="geomap-pin-card__empty">Hacé click en el mapa para marcar un punto de referencia. Se mostrarán las coordenadas y la provincia/departamento más cercano.</div>
+            </div>
+          </div>
+          <!-- Legend -->
+          <div class="geomap-legend">
+            <div class="geomap-legend__title">Provincias en Cobertura</div>
+            <div class="geomap-legend__items" id="geomapLegendItems"></div>
+            <!-- Tile switcher -->
+            <div class="geomap-tiles">
+              <button class="geomap-tile-btn geomap-tile-btn--active" data-tile="terrain">Terreno</button>
+              <button class="geomap-tile-btn" data-tile="satellite">Satélite</button>
+              <button class="geomap-tile-btn" data-tile="osm">Calles</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- EMPTY STATE ---- -->
+    <section id="emptyState" class="card empty-state">
+      <div class="empty-state__icon">⊕</div>
+      <div class="empty-state__title">Busque un cliente para evaluar</div>
+      <div class="empty-state__text">Ingrese una razón social, CUIT o nombre de establecimiento para obtener la precalificación crediticia con información agronómica integrada.</div>
+    </section>
+
+    <!-- ---- LOADING ---- -->
+    <section id="loadingState" class="card" style="display:none">
+      <div class="loading-overlay">
+        <div style="text-align:center">
+          <div class="loading-spinner"></div>
+          <div style="margin-top:12px;font-size:.85rem;color:var(--n500)">Generando precalificación crediticia...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- RESULTS ---- -->
+    <div id="results" style="display:none">
+
+      <!-- Client header + KPIs -->
+      <section class="card" id="clientCard">
+        <div class="client-header" id="clientHeader"></div>
+        <div class="kpi-row" id="clientKpis"></div>
+      </section>
+
+      <!-- Layout: Score sidebar + Content -->
+      <div class="layout-2col">
+
+        <!-- LEFT: Score + Semáforos -->
+        <div>
+          <div class="card" id="scoreCard"></div>
+          <div class="card">
+            <div class="card__title">
+              <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--green-700)" stroke-width="1.5"/><circle cx="8" cy="5" r="1.5" fill="var(--green-700)"/><rect x="7" y="7.5" width="2" height="4.5" rx="1" fill="var(--green-700)"/></svg>
+              Semáforos de Evaluación
+            </div>
+            <div class="semaforo-grid" id="semaforoGrid"></div>
+            <div style="margin-top:var(--sp-md);text-align:center">
+              <button class="btn btn--secondary btn--sm" id="btnScore">Ver detalle del score</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Content tabs -->
+        <div>
+          <div class="card" style="padding-bottom:var(--sp-sm)">
+            <div class="tabs" id="mainTabs">
+              <button class="tabs__tab tabs__tab--active" data-tab="temporal">Vista Temporal</button>
+              <button class="tabs__tab" data-tab="benchmark">Benchmark Zonal</button>
+              <button class="tabs__tab" data-tab="factores">Factores</button>
+              <button class="tabs__tab" data-tab="riesgos">Riesgos y Oportunidades</button>
+            </div>
+
+            <div class="tab-content tab-content--active" id="tab-temporal">
+              <div class="temporal-grid" id="temporalGrid"></div>
+            </div>
+
+            <div class="tab-content" id="tab-benchmark">
+              <div style="margin-bottom:var(--sp-md)">
+                <h3 style="font-size:.95rem;font-weight:600;color:var(--n800);margin-bottom:4px">Desempeño vs Benchmark Zonal</h3>
+                <p style="font-size:.78rem;color:var(--n400)">Rendimiento promedio del cliente comparado con la media del departamento</p>
+              </div>
+              <div id="benchmarkBars"></div>
+              <div class="donut-container" id="donutChart"></div>
+            </div>
+
+            <div class="tab-content" id="tab-factores">
+              <div style="margin-bottom:var(--sp-md)">
+                <h3 style="font-size:.95rem;font-weight:600;color:var(--n800);margin-bottom:4px">Factores que Explican la Precalificación</h3>
+                <p style="font-size:.78rem;color:var(--n400)">Cada factor contribuye positiva o negativamente al resultado final</p>
+              </div>
+              <div class="factor-list" id="factorList"></div>
+            </div>
+
+            <div class="tab-content" id="tab-riesgos">
+              <div id="riskOppBlocks"></div>
+            </div>
+          </div>
+
+          <!-- Insights -->
+          <div class="insights" id="insightsBlock" style="display:none">
+            <div class="insights__title">Observaciones Automáticas para el Analista</div>
+            <div id="insightsList"></div>
+          </div>
+
+          <!-- Recommendation -->
+          <div class="card" id="recoBlock" style="display:none">
+            <div class="card__title">
+              <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1l2 5h5l-4 3 1.5 5L8 11l-4.5 3L5 9 1 6h5z" fill="var(--green-600)"/></svg>
+              Recomendación Sugerida
+            </div>
+            <div id="recoContent"></div>
+          </div>
+
+          <!-- Actions -->
+          <div class="card" style="display:flex;gap:var(--sp-md);align-items:center;flex-wrap:wrap">
+            <button class="btn btn--primary" id="btnSimular">Simular revisión crediticia</button>
+            <button class="btn btn--secondary" id="btnExportar">Exportar ficha</button>
+            <div id="successToast" class="success-toast">La solicitud de revisión crediticia fue enviada correctamente al equipo de riesgo.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ======================== MODAL ======================== -->
+  <div class="modal-backdrop" id="modalScore">
+    <div class="modal">
+      <div class="modal__header">
+        <div class="modal__title">Detalle de la Precalificación</div>
+        <button class="modal__close" id="btnCloseModal">&times;</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- ======================== FOOTER ======================== -->
+  <footer class="suite-footer">
+    Agro Intelligence Suite — Información de carácter orientativo. No reemplaza el proceso formal de evaluación crediticia.
+    — Última actualización: <span id="footerDate"></span> — Campaña 2025/26
+  </footer>
+
+<script>
+/* ============================================================
+   DATA — PRECALIFICACIÓN CREDITICIA AGRONÓMICA
+   ============================================================
+   Datos estáticos para el prototipo.
+   En producción: reemplazar por llamadas a Bold API.
+   ============================================================ */
+
+const META = { lastUpdate:'2026-03-14', campaignCurrent:'2025/26' };
+
+const CROPS = {
+  soja:    { label:'Soja',    color:'#4CAF50', price:320 },
+  maiz:    { label:'Maíz',    color:'#FFC107', price:185 },
+  trigo:   { label:'Trigo',   color:'#8D6E63', price:230 },
+  girasol: { label:'Girasol', color:'#FF9800', price:410 },
+  cebada:  { label:'Cebada',  color:'#9E9D24', price:210 }
+};
+
+const BENCHMARKS = {
+  'Pergamino':     { soja:38, maiz:95,  trigo:42, girasol:24 },
+  'Marcos Juárez': { soja:40, maiz:100, trigo:45, girasol:26 },
+  'General López': { soja:37, maiz:92,  trigo:41, girasol:23 },
+  'Paraná':        { soja:32, maiz:78,  trigo:35, girasol:19 },
+  'Quemú Quemú':   { soja:28, maiz:70,  trigo:30, girasol:17 },
+  'Río Cuarto':    { soja:30, maiz:75,  trigo:33, girasol:18 },
+  'Unión':         { soja:35, maiz:85,  trigo:38, girasol:21 },
+  'Caseros':       { soja:36, maiz:88,  trigo:39, girasol:22 }
+};
+
+/* ---- 5 perfiles con diferente señal crediticia ---- */
+const CLIENTS = [
+  {
+    id:'CLI-001', name:'Agropecuaria Los Alamos S.A.', cuit:'20-31456789-2',
+    tipo:'Sociedad Anónima', segmento:'Agrícola Puro', antiguedad:12,
+    region:'Pergamino', provincia:'Buenos Aires',
+    establecimientos:[
+      { id:'EST-A1', name:'La Esperanza', ha:680, dept:'Pergamino' },
+      { id:'EST-A2', name:'San Martín',   ha:520, dept:'Pergamino' }
+    ],
+    lotes:[
+      { id:'L01', est:'EST-A1', ha:250, crop:'soja',  yH:39, yC:41, yP:42, ws:'low',      cond:'excellent', ndvi:.78, prev:'maiz',  rotation:true  },
+      { id:'L02', est:'EST-A1', ha:220, crop:'maiz',  yH:96, yC:101,yP:103,ws:'low',      cond:'excellent', ndvi:.82, prev:'soja',  rotation:true  },
+      { id:'L03', est:'EST-A1', ha:210, crop:'trigo', yH:43, yC:44, yP:45, ws:'moderate',  cond:'good',      ndvi:.70, prev:'trigo', rotation:false },
+      { id:'L04', est:'EST-A2', ha:300, crop:'soja',  yH:37, yC:39, yP:40, ws:'low',      cond:'good',      ndvi:.74, prev:'maiz',  rotation:true  },
+      { id:'L05', est:'EST-A2', ha:220, crop:'maiz',  yH:94, yC:97, yP:99, ws:'moderate',  cond:'good',      ndvi:.72, prev:'soja',  rotation:true  }
+    ],
+    sustentabilidad:'alta', practicas:'buenas', continuidad:true,
+    historialCrediticio:'bueno', deudaActual:0.28, cobertura:0.85
+  },
+  {
+    id:'CLI-002', name:'Campos del Sur S.R.L.', cuit:'30-71234567-8',
+    tipo:'S.R.L.', segmento:'Mixto (Agrícola-Ganadero)', antiguedad:8,
+    region:'Marcos Juárez', provincia:'Córdoba',
+    establecimientos:[
+      { id:'EST-B1', name:'Don Julio',  ha:420, dept:'Marcos Juárez' },
+      { id:'EST-B2', name:'La Lomita',  ha:380, dept:'Marcos Juárez' }
+    ],
+    lotes:[
+      { id:'L06', est:'EST-B1', ha:200, crop:'soja',  yH:38, yC:36, yP:35, ws:'moderate', cond:'fair', ndvi:.58, prev:'soja',  rotation:false },
+      { id:'L07', est:'EST-B1', ha:220, crop:'maiz',  yH:92, yC:85, yP:82, ws:'moderate', cond:'fair', ndvi:.55, prev:'maiz',  rotation:false },
+      { id:'L08', est:'EST-B2', ha:200, crop:'soja',  yH:40, yC:37, yP:36, ws:'high',     cond:'fair', ndvi:.52, prev:'soja',  rotation:false },
+      { id:'L09', est:'EST-B2', ha:180, crop:'trigo', yH:42, yC:38, yP:36, ws:'moderate', cond:'fair', ndvi:.56, prev:'trigo', rotation:false }
+    ],
+    sustentabilidad:'media', practicas:'regulares', continuidad:true,
+    historialCrediticio:'regular', deudaActual:0.42, cobertura:0.6
+  },
+  {
+    id:'CLI-003', name:'Estancia La Biznaga', cuit:'20-28765432-5',
+    tipo:'Persona Física', segmento:'Agrícola Puro', antiguedad:22,
+    region:'General López', provincia:'Santa Fe',
+    establecimientos:[
+      { id:'EST-C1', name:'La Biznaga', ha:1850, dept:'General López' }
+    ],
+    lotes:[
+      { id:'L10', est:'EST-C1', ha:500, crop:'soja',    yH:36, yC:38, yP:39, ws:'low', cond:'good', ndvi:.73, prev:'maiz',  rotation:true },
+      { id:'L11', est:'EST-C1', ha:480, crop:'maiz',    yH:90, yC:94, yP:96, ws:'low', cond:'good', ndvi:.76, prev:'soja',  rotation:true },
+      { id:'L12', est:'EST-C1', ha:420, crop:'trigo',   yH:40, yC:42, yP:43, ws:'low', cond:'good', ndvi:.68, prev:'maiz',  rotation:true },
+      { id:'L13', est:'EST-C1', ha:250, crop:'girasol', yH:22, yC:24, yP:25, ws:'low', cond:'good', ndvi:.65, prev:'trigo', rotation:true },
+      { id:'L14', est:'EST-C1', ha:200, crop:'cebada',  yH:35, yC:37, yP:38, ws:'low', cond:'good', ndvi:.64, prev:'soja',  rotation:true }
+    ],
+    sustentabilidad:'alta', practicas:'buenas', continuidad:true,
+    historialCrediticio:'excelente', deudaActual:0.08, cobertura:0.95
+  },
+  {
+    id:'CLI-004', name:'González Hnos. Agropecuaria', cuit:'30-65432198-1',
+    tipo:'S.H.', segmento:'Agrícola Puro', antiguedad:5,
+    region:'Quemú Quemú', provincia:'La Pampa',
+    establecimientos:[
+      { id:'EST-D1', name:'El Porvenir', ha:900, dept:'Quemú Quemú' }
+    ],
+    lotes:[
+      { id:'L15', est:'EST-D1', ha:350, crop:'soja',    yH:26, yC:20, yP:18, ws:'high', cond:'poor', ndvi:.35, prev:'soja',    rotation:false },
+      { id:'L16', est:'EST-D1', ha:300, crop:'maiz',    yH:65, yC:52, yP:48, ws:'high', cond:'poor', ndvi:.38, prev:'soja',    rotation:false },
+      { id:'L17', est:'EST-D1', ha:250, crop:'girasol', yH:15, yC:11, yP:10, ws:'high', cond:'poor', ndvi:.32, prev:'girasol', rotation:false }
+    ],
+    sustentabilidad:'baja', practicas:'deficientes', continuidad:false,
+    historialCrediticio:'irregular', deudaActual:0.68, cobertura:0.3
+  },
+  {
+    id:'CLI-005', name:'Agroservicios Pampa Grande', cuit:'30-70987654-3',
+    tipo:'S.A.', segmento:'Servicios + Producción', antiguedad:15,
+    region:'Caseros', provincia:'Santa Fe',
+    establecimientos:[
+      { id:'EST-E1', name:'Pampa Grande', ha:620, dept:'Caseros' },
+      { id:'EST-E2', name:'El Sauce',     ha:480, dept:'Caseros' }
+    ],
+    lotes:[
+      { id:'L18', est:'EST-E1', ha:280, crop:'soja',  yH:35, yC:37, yP:38, ws:'low',      cond:'good', ndvi:.71, prev:'maiz',  rotation:true  },
+      { id:'L19', est:'EST-E1', ha:340, crop:'maiz',  yH:87, yC:90, yP:91, ws:'low',      cond:'good', ndvi:.74, prev:'soja',  rotation:true  },
+      { id:'L20', est:'EST-E2', ha:240, crop:'trigo', yH:38, yC:40, yP:38, ws:'moderate', cond:'fair', ndvi:.60, prev:'trigo', rotation:false },
+      { id:'L21', est:'EST-E2', ha:240, crop:'soja',  yH:34, yC:33, yP:31, ws:'moderate', cond:'fair', ndvi:.56, prev:'soja',  rotation:false }
+    ],
+    sustentabilidad:'media', practicas:'buenas', continuidad:true,
+    historialCrediticio:'bueno', deudaActual:0.25, cobertura:0.75
+  }
+];
+
+/* ============================================================
+   GEO MAP DATA
+   ============================================================ */
+const DEPTS = [
+  // Buenos Aires
+  { name:'Pergamino',          prov:'Buenos Aires', lat:-33.89, lng:-60.57, ha:1880 },
+  { name:'Junín',              prov:'Buenos Aires', lat:-34.59, lng:-60.95, ha:1600 },
+  { name:'Rojas',              prov:'Buenos Aires', lat:-34.20, lng:-60.73, ha:870  },
+  { name:'Salto',              prov:'Buenos Aires', lat:-34.29, lng:-60.25, ha:0    },
+  { name:'Colón',              prov:'Buenos Aires', lat:-33.89, lng:-61.10, ha:0    },
+  // Córdoba
+  { name:'Marcos Juárez',      prov:'Córdoba',      lat:-32.69, lng:-62.10, ha:950  },
+  { name:'Unión',              prov:'Córdoba',      lat:-32.87, lng:-62.90, ha:1100 },
+  { name:'Río Cuarto',         prov:'Córdoba',      lat:-33.13, lng:-64.35, ha:640  },
+  { name:'General San Martín', prov:'Córdoba',      lat:-31.53, lng:-63.25, ha:0    },
+  { name:'Tercero Arriba',     prov:'Córdoba',      lat:-32.18, lng:-63.65, ha:0    },
+  // Santa Fe
+  { name:'General López',      prov:'Santa Fe',     lat:-33.68, lng:-61.72, ha:2550 },
+  { name:'Caseros',            prov:'Santa Fe',     lat:-33.05, lng:-61.17, ha:0    },
+  { name:'Constitución',       prov:'Santa Fe',     lat:-33.23, lng:-60.50, ha:1400 },
+  { name:'Belgrano',           prov:'Santa Fe',     lat:-32.62, lng:-61.50, ha:0    },
+  { name:'Iriondo',            prov:'Santa Fe',     lat:-32.62, lng:-61.03, ha:0    },
+  // Entre Ríos
+  { name:'Paraná',             prov:'Entre Ríos',   lat:-31.73, lng:-60.53, ha:520  },
+  { name:'Diamante',           prov:'Entre Ríos',   lat:-32.06, lng:-60.64, ha:0    },
+  { name:'Victoria',           prov:'Entre Ríos',   lat:-32.62, lng:-60.15, ha:0    },
+  { name:'Gualeguaychú',       prov:'Entre Ríos',   lat:-33.01, lng:-59.32, ha:0    },
+  // La Pampa
+  { name:'Quemú Quemú',        prov:'La Pampa',     lat:-36.05, lng:-63.57, ha:3100 },
+  { name:'Maracó',             prov:'La Pampa',     lat:-35.67, lng:-63.75, ha:0    },
+  { name:'Catriló',            prov:'La Pampa',     lat:-36.37, lng:-63.42, ha:0    }
+];
+
+const PROV_COLORS = {
+  'Buenos Aires': { fill:'#2e7d4f', stroke:'#1a5c38' },
+  'Córdoba':      { fill:'#1565c0', stroke:'#0d47a1' },
+  'Santa Fe':     { fill:'#ef6c00', stroke:'#bf360c' },
+  'Entre Ríos':   { fill:'#7b1fa2', stroke:'#4a148c' },
+  'La Pampa':     { fill:'#c62828', stroke:'#8e0000' }
+};
+
+/* ============================================================
+   FORMAT UTILITIES
+   ============================================================ */
+const FMT = {
+  n(v, d=0) { return new Intl.NumberFormat('es-AR', { minimumFractionDigits:d, maximumFractionDigits:d }).format(v); },
+  usd(v)    { return 'USD ' + this.n(v); },
+  ha(v)     { return this.n(v) + ' ha'; },
+  y(v)      { return this.n(v, 1) + ' qq/ha'; },
+  pct(v)    { return (v >= 0 ? '+' : '') + this.n(v, 1) + '%'; }
+};
+
+function formatDate(s) {
+  const p = s.split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+/* ============================================================
+   SCORING ENGINE — Precalificación Crediticia Agronómica
+   ============================================================
+   Motor de scoring demo transparente.
+   No es un scoring bancario real.
+   Lógica: mejor historial + mejor consistencia + mejor benchmark = mejor señal
+   
+   Dependencias: CROPS, BENCHMARKS (de data.js)
+   Entrada: objeto client
+   Salida:  { score, precalificacion, color, semaforos, avgYieldDelta,
+              rotPct, avgCond, futDelta, histScore, wsPenalty }
+   ============================================================ */
+
+function computeScore(client) {
+  let score = 50; // base
+  const lotes = client.lotes;
+  const totalHa = lotes.reduce((s, l) => s + l.ha, 0);
+  const dept = client.establecimientos[0]?.dept;
+  const bm = BENCHMARKS[dept] || {};
+
+  // 1. Historial productivo (0-20pts)
+  const avgYieldDelta = lotes.reduce((s, l) => {
+    const bmVal = bm[l.crop];
+    return s + (bmVal ? (l.yC - bmVal) / bmVal : 0);
+  }, 0) / lotes.length;
+  const histScore = Math.min(20, Math.max(0, 10 + avgYieldDelta * 50));
+  score += histScore;
+
+  // 2. Consistencia / rotación (0-10pts)
+  const rotPct = lotes.filter(l => l.rotation).length / lotes.length;
+  score += rotPct * 10;
+
+  // 3. Condición actual (0-10pts)
+  const condMap = { excellent: 10, good: 7, fair: 4, poor: 1 };
+  const avgCond = lotes.reduce((s, l) => s + condMap[l.cond], 0) / lotes.length;
+  score += avgCond;
+
+  // 4. Estrés hídrico penalty (-15 to 0)
+  const wsMap = { low: 0, moderate: -3, high: -8 };
+  const wsPenalty = lotes.reduce((s, l) => s + wsMap[l.ws], 0) / lotes.length;
+  score += wsPenalty;
+
+  // 5. Sustentabilidad bonus (0-5)
+  score += client.sustentabilidad === 'alta' ? 5 : client.sustentabilidad === 'media' ? 2 : 0;
+
+  // 6. Historial crediticio (0-10)
+  const histCred = { excelente: 10, bueno: 7, regular: 3, irregular: 0 };
+  score += histCred[client.historialCrediticio] || 0;
+
+  // 7. Deuda/cobertura (-10 to +5)
+  score += (client.cobertura - client.deudaActual) * 10;
+
+  // 8. Antigüedad (0-5)
+  score += Math.min(5, client.antiguedad / 4);
+
+  // 9. Prácticas (0-5)
+  score += client.practicas === 'buenas' ? 5 : client.practicas === 'regulares' ? 2 : 0;
+
+  // 10. Proyección futura (delta rendimiento)
+  const futDelta = lotes.reduce((s, l) => s + (l.yP - l.yC) / Math.max(l.yC, 1), 0) / lotes.length;
+  score += futDelta > 0 ? Math.min(5, futDelta * 30) : Math.max(-5, futDelta * 30);
+
+  score = Math.min(100, Math.max(0, Math.round(score)));
+
+  let precalificacion, color;
+  if (score >= 70) { precalificacion = 'Favorable'; color = 'green'; }
+  else if (score >= 45) { precalificacion = 'Con revisión'; color = 'yellow'; }
+  else { precalificacion = 'Observada'; color = 'red'; }
+
+  // Semáforos
+  const semaforos = {
+    practicas:       client.practicas === 'buenas' ? 'green' : client.practicas === 'regulares' ? 'yellow' : 'red',
+    sustentabilidad: client.sustentabilidad === 'alta' ? 'green' : client.sustentabilidad === 'media' ? 'yellow' : 'red',
+    consistencia:    rotPct >= 0.7 ? 'green' : rotPct >= 0.4 ? 'yellow' : 'red',
+    exposicion:      client.deudaActual <= 0.2 ? 'green' : client.deudaActual <= 0.45 ? 'yellow' : 'red',
+    benchmark:       avgYieldDelta >= 0 ? 'green' : avgYieldDelta >= -0.1 ? 'yellow' : 'red'
+  };
+
+  return { score, precalificacion, color, semaforos, avgYieldDelta, rotPct, avgCond, futDelta, histScore, wsPenalty };
+}
+
+/* ============================================================
+   RENDERERS — Precalificación Crediticia Agronómica
+   ============================================================
+   Cada función recibe (client, scoring) y escribe innerHTML.
+   Dependencias: FMT, CROPS, BENCHMARKS, formatDate, META (de data.js)
+   ============================================================ */
+
+/* ---- Helper ---- */
+function getDominantCrop(lotes) {
+  const m = {};
+  lotes.forEach(l => { m[l.crop] = (m[l.crop] || 0) + l.ha; });
+  const totalHa = lotes.reduce((s, l) => s + l.ha, 0);
+  let maxK = '', maxV = 0;
+  Object.entries(m).forEach(([k, v]) => { if (v > maxV) { maxV = v; maxK = k; } });
+  return { key: maxK, label: CROPS[maxK]?.label || maxK, ha: maxV, pct: Math.round(maxV / totalHa * 100) };
+}
+
+
+function renderClientHeader(client) {
+  const totalHa = client.establecimientos.reduce((s, e) => s + e.ha, 0);
+  const nEst = client.establecimientos.length;
+  const nLotes = client.lotes.length;
+  document.getElementById('clientHeader').innerHTML = `
+    <div class="client-avatar">
+      <svg viewBox="0 0 28 28" fill="none"><rect x="3" y="4" width="22" height="20" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M9 12h10M9 16h6" stroke="currentColor" stroke-width="1.2"/></svg>
+    </div>
+    <div class="client-info">
+      <div class="client-info__name">${client.name}</div>
+      <div class="client-info__meta">CUIT ${client.cuit} · ${client.tipo} · ${client.region}, ${client.provincia} · Antigüedad: ${client.antiguedad} años</div>
+      <div class="client-info__tags">
+        <span class="badge badge--blue">${client.segmento}</span>
+        <span class="badge badge--gray">${nEst} establecimiento${nEst > 1 ? 's' : ''}</span>
+        <span class="badge badge--gray">${nLotes} lotes</span>
+        <span class="badge badge--gray">${FMT.ha(totalHa)}</span>
+      </div>
+    </div>`;
+}
+
+
+function renderKPIs(client, scoring) {
+  const totalHa = client.establecimientos.reduce((s, e) => s + e.ha, 0);
+  const valActual = client.lotes.reduce((s, l) => s + l.ha * l.yC * (CROPS[l.crop]?.price || 0) / 10, 0);
+  const valHist   = client.lotes.reduce((s, l) => s + l.ha * l.yH * (CROPS[l.crop]?.price || 0) / 10, 0);
+  const delta = valHist > 0 ? ((valActual - valHist) / valHist * 100) : 0;
+  const dominante = getDominantCrop(client.lotes);
+
+  document.getElementById('clientKpis').innerHTML = `
+    <div class="kpi">
+      <div class="kpi__label">Superficie Total</div>
+      <div class="kpi__value">${FMT.ha(totalHa)}</div>
+      <div class="kpi__detail">${client.establecimientos.map(e => e.name).join(', ')}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi__label">Valor Productivo Estimado</div>
+      <div class="kpi__value">${FMT.usd(Math.round(valActual))}</div>
+      <div class="kpi__delta ${delta >= 0 ? 'kpi__delta--up' : 'kpi__delta--down'}">${FMT.pct(delta)} vs campaña anterior</div>
+    </div>
+    <div class="kpi${client.deudaActual > 0.45 ? ' kpi--warn' : ''}">
+      <div class="kpi__label">Ratio Deuda / Cobertura</div>
+      <div class="kpi__value">${(client.deudaActual * 100).toFixed(0)}% / ${(client.cobertura * 100).toFixed(0)}%</div>
+      <div class="kpi__detail">Deuda actual / Cobertura estimada</div>
+    </div>
+    <div class="kpi kpi--info">
+      <div class="kpi__label">Cultivo Dominante</div>
+      <div class="kpi__value">${dominante.label}</div>
+      <div class="kpi__detail">${FMT.ha(dominante.ha)} (${dominante.pct}% del total)</div>
+    </div>`;
+}
+
+
+function renderScoreCard(scoring) {
+  const cls = scoring.color === 'green' ? 'favorable' : scoring.color === 'yellow' ? 'revision' : 'observada';
+  const strokeColor = scoring.color === 'green' ? 'var(--sig-green)' : scoring.color === 'yellow' ? 'var(--sig-yellow)' : 'var(--sig-red)';
+  const circumference = 2 * Math.PI * 50;
+  const offset = circumference - (scoring.score / 100) * circumference;
+
+  document.getElementById('scoreCard').innerHTML = `
+    <div class="score-card score-card--${cls}">
+      <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--n500);margin-bottom:var(--sp-sm)">Precalificación Crediticia</div>
+      <div class="score-ring">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--n200)" stroke-width="10"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="${strokeColor}" stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" style="transition:stroke-dashoffset 1s ease"/>
+        </svg>
+        <div class="score-ring__value">${scoring.score}</div>
+      </div>
+      <div class="score-card__label" style="color:${strokeColor === 'var(--sig-green)' ? 'var(--sig-green)' : strokeColor === 'var(--sig-yellow)' ? '#f57f17' : 'var(--sig-red)'}">Precalificación ${scoring.precalificacion}</div>
+      <div class="score-card__sublabel">${
+        scoring.precalificacion === 'Favorable' ? 'La combinación de indicadores sugiere un perfil crediticio sólido.' :
+        scoring.precalificacion === 'Con revisión' ? 'Algunos indicadores requieren revisión adicional antes de definir.' :
+        'El perfil presenta señales que requieren atención prioritaria.'
+      }</div>
+    </div>`;
+}
+
+
+function renderSemaforos(scoring) {
+  const sem = scoring.semaforos;
+  const labels = {
+    practicas:       'Prácticas Agronómicas',
+    sustentabilidad: 'Sustentabilidad',
+    consistencia:    'Consistencia Productiva',
+    exposicion:      'Exposición Relativa',
+    benchmark:       'Benchmark Zonal'
+  };
+  const valueLabels = { green: 'Favorable', yellow: 'Atención', red: 'Crítico' };
+  const valueColors = { green: 'var(--sig-green)', yellow: '#f57f17', red: 'var(--sig-red)' };
+  let html = '';
+  Object.entries(sem).forEach(([k, v]) => {
+    html += `<div class="semaforo-item">
+      <div class="semaforo-lights">
+        <div class="semaforo-light semaforo-light--r${v === 'red' ? ' lit' : ''}"></div>
+        <div class="semaforo-light semaforo-light--y${v === 'yellow' ? ' lit' : ''}"></div>
+        <div class="semaforo-light semaforo-light--g${v === 'green' ? ' lit' : ''}"></div>
+      </div>
+      <span class="semaforo-label">${labels[k]}</span>
+      <span class="semaforo-value" style="color:${valueColors[v]}">${valueLabels[v]}</span>
+    </div>`;
+  });
+  document.getElementById('semaforoGrid').innerHTML = html;
+}
+
+
+function renderTemporal(client) {
+  const periods = [
+    { key: 'past',    label: 'Pasado (Campaña anterior)', headerCls: 'past',    yKey: 'yH' },
+    { key: 'present', label: 'Presente (Campaña actual)',  headerCls: 'present', yKey: 'yC' },
+    { key: 'future',  label: 'Futuro (Proyección)',        headerCls: 'future',  yKey: 'yP' }
+  ];
+
+  let html = '';
+  periods.forEach(p => {
+    const totalHa = client.lotes.reduce((s, l) => s + l.ha, 0);
+    const avgYield = client.lotes.reduce((s, l) => s + l[p.yKey] * l.ha, 0) / totalHa;
+    const valTotal = client.lotes.reduce((s, l) => s + l.ha * l[p.yKey] * (CROPS[l.crop]?.price || 0) / 10, 0);
+    const dom = getDominantCrop(client.lotes);
+
+    const cropData = {};
+    client.lotes.forEach(l => {
+      if (!cropData[l.crop]) cropData[l.crop] = { ha: 0, ySum: 0 };
+      cropData[l.crop].ha += l.ha;
+      cropData[l.crop].ySum += l[p.yKey] * l.ha;
+    });
+
+    let cropRows = '';
+    Object.entries(cropData).forEach(([k, d]) => {
+      const ci = CROPS[k];
+      if (!ci) return;
+      const ay = d.ySum / d.ha;
+      cropRows += `<div class="temporal-row"><span class="temporal-row__label">↳ ${ci.label}</span><span class="temporal-row__value">${FMT.n(ay, 1)} qq/ha · ${FMT.ha(d.ha)}</span></div>`;
+    });
+
+    html += `<div class="temporal-col">
+      <div class="temporal-col__header temporal-col__header--${p.headerCls}">${p.label}</div>
+      <div class="temporal-col__body">
+        <div class="temporal-row"><span class="temporal-row__label">Superficie total</span><span class="temporal-row__value">${FMT.ha(totalHa)}</span></div>
+        <div class="temporal-row"><span class="temporal-row__label">Rinde promedio pond.</span><span class="temporal-row__value">${FMT.n(avgYield, 1)} qq/ha</span></div>
+        <div class="temporal-row"><span class="temporal-row__label">Valor productivo est.</span><span class="temporal-row__value">${FMT.usd(Math.round(valTotal))}</span></div>
+        <div class="temporal-row"><span class="temporal-row__label">Cultivo dominante</span><span class="temporal-row__value">${dom.label}</span></div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--n200)">
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--n400);margin-bottom:4px">Detalle por Cultivo</div>
+          ${cropRows}
+        </div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('temporalGrid').innerHTML = html;
+}
+
+
+function renderBenchmark(client) {
+  const dept = client.establecimientos[0]?.dept;
+  const bm = BENCHMARKS[dept];
+  if (!bm) { document.getElementById('benchmarkBars').innerHTML = '<p style="color:var(--n400);font-size:.85rem">Benchmark no disponible para esta zona.</p>'; return; }
+
+  const cropData = {};
+  client.lotes.forEach(l => {
+    if (!cropData[l.crop]) cropData[l.crop] = { ha: 0, ySum: 0 };
+    cropData[l.crop].ha += l.ha;
+    cropData[l.crop].ySum += l.yC * l.ha;
+  });
+
+  let html = '';
+  Object.entries(cropData).forEach(([k, d]) => {
+    const ci = CROPS[k]; if (!ci) return;
+    const ay = d.ySum / d.ha;
+    const bmVal = bm[k]; if (!bmVal) return;
+    const max = Math.max(ay, bmVal) * 1.3;
+    const clientPct = (ay / max) * 100;
+    const bmPct = (bmVal / max) * 100;
+    const delta = ((ay - bmVal) / bmVal * 100);
+    const deltaColor = delta >= 0 ? 'var(--sig-green)' : 'var(--sig-red)';
+
+    html += `<div class="bm-bar">
+      <div class="bm-bar__header">
+        <span class="bm-bar__label">${ci.label}</span>
+        <span class="bm-bar__values">Cliente: ${FMT.n(ay, 1)} qq/ha · Zona: ${FMT.n(bmVal, 1)} qq/ha · <span style="color:${deltaColor};font-weight:600">${FMT.pct(delta)}</span></span>
+      </div>
+      <div class="bm-bar__track">
+        <div class="bm-bar__fill" style="width:${clientPct}%;background:${ci.color};opacity:.7"></div>
+        <div class="bm-bar__marker" style="left:${bmPct}%" title="Benchmark zonal: ${FMT.n(bmVal, 1)} qq/ha"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('benchmarkBars').innerHTML = html;
+
+  // Donut: crop mix
+  const entries = Object.entries(cropData).map(([k, d]) => ({ key: k, label: CROPS[k]?.label || k, ha: d.ha, color: CROPS[k]?.color || '#999' }));
+  const totalHa = entries.reduce((s, e) => s + e.ha, 0);
+  let angle = 0;
+  const size = 160, cx = 80, cy = 80, r = 55, r2 = 35;
+  let donut = `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">`;
+  entries.forEach(e => {
+    const pct = e.ha / totalHa;
+    const a1 = angle, a2 = angle + pct * 360;
+    const la = (pct > 0.5) ? 1 : 0;
+    const toRad = d => d * Math.PI / 180;
+    const x1o = cx + r * Math.cos(toRad(a1)),  y1o = cy + r * Math.sin(toRad(a1));
+    const x2o = cx + r * Math.cos(toRad(a2)),  y2o = cy + r * Math.sin(toRad(a2));
+    const x1i = cx + r2 * Math.cos(toRad(a2)), y1i = cy + r2 * Math.sin(toRad(a2));
+    const x2i = cx + r2 * Math.cos(toRad(a1)), y2i = cy + r2 * Math.sin(toRad(a1));
+    donut += `<path d="M${x1o},${y1o} A${r},${r} 0 ${la} 1 ${x2o},${y2o} L${x1i},${y1i} A${r2},${r2} 0 ${la} 0 ${x2i},${y2i} Z" fill="${e.color}" opacity=".8"><title>${e.label}: ${FMT.ha(e.ha)} (${(pct * 100).toFixed(0)}%)</title></path>`;
+    angle = a2;
+  });
+  donut += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="#444" font-size="11" font-weight="700" font-family="Segoe UI,Arial">Mix</text>`;
+  donut += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" fill="#777" font-size="9" font-family="Segoe UI,Arial">${entries.length} cultivos</text>`;
+  donut += '</svg>';
+  donut += '<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;font-size:.78rem">';
+  entries.forEach(e => {
+    donut += `<div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:${e.color}"></div>${e.label} ${(e.ha / totalHa * 100).toFixed(0)}%</div>`;
+  });
+  donut += '</div>';
+  document.getElementById('donutChart').innerHTML = donut;
+}
+
+
+function renderFactors(client, scoring) {
+  const factors = [];
+
+  if (scoring.histScore >= 15) factors.push({ type: 'positive', text: 'Historial productivo sólido con rendimientos consistentes en las últimas campañas.' });
+  else if (scoring.histScore >= 8) factors.push({ type: 'neutral', text: 'Historial productivo dentro de parámetros aceptables, sin deterioro significativo.' });
+  else factors.push({ type: 'negative', text: 'Historial productivo presenta rendimientos por debajo de las expectativas zonales.' });
+
+  if (scoring.rotPct >= 0.7) factors.push({ type: 'positive', text: `Buena práctica de rotación detectada (${(scoring.rotPct * 100).toFixed(0)}% de los lotes rotan cultivo).` });
+  else if (scoring.rotPct >= 0.4) factors.push({ type: 'neutral', text: `Rotación parcial (${(scoring.rotPct * 100).toFixed(0)}% de los lotes). Se sugiere mayor diversificación.` });
+  else factors.push({ type: 'negative', text: `Rotación insuficiente (${(scoring.rotPct * 100).toFixed(0)}% de los lotes). Riesgo de degradación de suelo y menor productividad futura.` });
+
+  if (scoring.avgYieldDelta >= 0) factors.push({ type: 'positive', text: 'Desempeño por encima del benchmark zonal en los cultivos principales.' });
+  else if (scoring.avgYieldDelta >= -0.1) factors.push({ type: 'neutral', text: 'Desempeño cercano al benchmark zonal. Brecha dentro de márgenes aceptables.' });
+  else factors.push({ type: 'negative', text: 'Brecha negativa significativa respecto del benchmark zonal. Requiere análisis de causas.' });
+
+  if (client.sustentabilidad === 'alta') factors.push({ type: 'positive', text: 'Señal de sustentabilidad positiva: mejora elegibilidad regulatoria y reputacional.' });
+  else if (client.sustentabilidad === 'baja') factors.push({ type: 'negative', text: 'Indicadores de sustentabilidad desfavorables. Riesgo ambiental y regulatorio.' });
+
+  if (client.deudaActual <= 0.2) factors.push({ type: 'positive', text: `Ratio de deuda actual bajo (${(client.deudaActual * 100).toFixed(0)}%). Capacidad de endeudamiento disponible.` });
+  else if (client.deudaActual > 0.45) factors.push({ type: 'negative', text: `Ratio de deuda elevado (${(client.deudaActual * 100).toFixed(0)}%). Limita la capacidad de absorción de nuevos créditos.` });
+
+  const highWs = client.lotes.filter(l => l.ws === 'high').length;
+  if (highWs > 0) factors.push({ type: 'negative', text: `${highWs} de ${client.lotes.length} lotes con estrés hídrico alto. Impacto potencial sobre rinde esperado.` });
+
+  if (scoring.futDelta > 0.02) factors.push({ type: 'positive', text: 'La proyección futura muestra recuperación o mejora de rendimientos.' });
+  else if (scoring.futDelta < -0.02) factors.push({ type: 'negative', text: 'La proyección futura indica un deterioro potencial del rendimiento productivo.' });
+
+  document.getElementById('factorList').innerHTML = factors.map(f => `
+    <div class="factor-item factor-item--${f.type}">
+      <span class="factor-item__icon">${f.type === 'positive' ? '✓' : f.type === 'negative' ? '✗' : '⚬'}</span>
+      <span class="factor-item__text">${f.text}</span>
+    </div>`).join('');
+}
+
+
+function renderRisksOpps(client, scoring) {
+  const risks = [], opps = [];
+
+  const highWs = client.lotes.filter(l => l.ws === 'high').length;
+  if (highWs) risks.push(`${(highWs / client.lotes.length * 100).toFixed(0)}% de los lotes con estrés hídrico alto. Potencial impacto en rendimiento y repago.`);
+  if (scoring.rotPct < 0.4) risks.push('Monocultivo persistente incrementa la vulnerabilidad productiva y sanitaria a mediano plazo.');
+  if (client.deudaActual > 0.45) risks.push('Exposición de deuda por encima de niveles óptimos. Evaluar capacidad de repago ante escenarios adversos.');
+  if (scoring.avgYieldDelta < -0.1) risks.push('Brecha sostenida con el benchmark zonal sugiere limitaciones estructurales del recurso productivo.');
+  if (client.sustentabilidad === 'baja') risks.push('Perfil de sustentabilidad desfavorable puede afectar elegibilidad en líneas de financiamiento verde.');
+  if (scoring.futDelta < -0.02) risks.push('Señal futura negativa: rendimientos proyectados por debajo de la media actual.');
+  if (!risks.length) risks.push('No se identificaron riesgos relevantes en los indicadores evaluados.');
+
+  if (scoring.avgYieldDelta >= 0.05) opps.push('El desempeño productivo permite explorar líneas de financiamiento con mejores condiciones.');
+  if (client.sustentabilidad === 'alta') opps.push('Perfil sustentable habilita acceso a financiamiento verde y líneas con tasa diferencial.');
+  if (client.cobertura >= 0.8) opps.push('Alta cobertura patrimonial permite respaldar operaciones de mayor envergadura.');
+  if (client.antiguedad >= 10) opps.push(`Antigüedad del cliente (${client.antiguedad} años) aporta solidez al vínculo comercial.`);
+  if (scoring.futDelta > 0.02) opps.push('Proyección productiva positiva sugiere mejora en la generación de flujos futuros.');
+  if (scoring.rotPct >= 0.7) opps.push('Buenas prácticas de rotación mejoran la resiliencia productiva a largo plazo.');
+  if (!opps.length) opps.push('Las oportunidades de mejora están condicionadas a la estabilización de los indicadores productivos.');
+
+  document.getElementById('riskOppBlocks').innerHTML = `
+    <div class="ro-grid">
+      <div class="ro-block">
+        <div class="ro-block__header ro-block__header--risk">Riesgos Identificados</div>
+        <div class="ro-block__body">${risks.map(r => `<div class="ro-item ro-item--risk">${r}</div>`).join('')}</div>
+      </div>
+      <div class="ro-block">
+        <div class="ro-block__header ro-block__header--opp">Oportunidades Detectadas</div>
+        <div class="ro-block__body">${opps.map(o => `<div class="ro-item ro-item--opp">${o}</div>`).join('')}</div>
+      </div>
+    </div>`;
+}
+
+
+function renderInsights(client, scoring) {
+  const ins = [];
+
+  if (scoring.precalificacion === 'Favorable')
+    ins.push(`El cliente presenta valorización agronómica sólida y desempeño por encima del benchmark zonal en ${client.region}.`);
+  if (scoring.precalificacion === 'Con revisión')
+    ins.push('Algunos indicadores se encuentran en zona de atención. Se recomienda profundizar el análisis antes de definir condiciones.');
+  if (scoring.precalificacion === 'Observada')
+    ins.push('El perfil presenta señales que requieren atención prioritaria. Se sugiere evaluar garantías adicionales.');
+
+  const highWs = client.lotes.filter(l => l.ws === 'high').length;
+  if (highWs) ins.push(`La señal ${highWs > client.lotes.length / 2 ? 'generalizada' : 'parcial'} de estrés hídrico requiere monitoreo de rindes efectivos al cierre de campaña.`);
+  if (client.sustentabilidad === 'alta') ins.push('Las prácticas productivas y la continuidad del uso agrícola mejoran la lectura de sustentabilidad.');
+  if (scoring.rotPct >= 0.7) ins.push('La buena práctica de rotación es un indicador positivo de gestión agronómica responsable.');
+  if (Math.abs(scoring.avgYieldDelta) < 0.05) ins.push(`La brecha entre rendimiento del establecimiento y benchmark zonal se mantiene estable en ${client.region}.`);
+  if (scoring.futDelta < -0.02) ins.push('La señal futura muestra mayor sensibilidad hídrica y requiere revisión del plan de siembra proyectado.');
+
+  document.getElementById('insightsBlock').style.display = ins.length ? '' : 'none';
+  document.getElementById('insightsList').innerHTML = ins.map(i => `<div class="insights__item">${i}</div>`).join('');
+}
+
+
+function renderRecommendation(client, scoring) {
+  document.getElementById('recoBlock').style.display = '';
+  let reco = '';
+  if (scoring.precalificacion === 'Favorable') {
+    reco = `<p style="font-size:.9rem;color:var(--sig-green);font-weight:600;margin-bottom:8px">Perfil recomendable para avance en proceso crediticio</p>
+      <p style="font-size:.85rem;color:var(--n700)">La combinación de historial productivo, desempeño contra benchmark, buenas prácticas y ratios de cobertura sugiere que el cliente es elegible para avanzar en el proceso formal de evaluación crediticia. Se sugiere considerar líneas agro estándar y, dado el perfil de sustentabilidad ${client.sustentabilidad === 'alta' ? 'favorable' : 'aceptable'}, evaluar acceso a líneas verdes.</p>`;
+  } else if (scoring.precalificacion === 'Con revisión') {
+    reco = `<p style="font-size:.9rem;color:#f57f17;font-weight:600;margin-bottom:8px">Requiere profundización antes de definir</p>
+      <p style="font-size:.85rem;color:var(--n700)">El perfil presenta elementos positivos pero también señales de atención que deben ser revisadas. Se recomienda solicitar documentación adicional (plan de siembra, historial de comercialización, detalle de deudas) y evaluar la viabilidad bajo escenarios de estrés productivo moderado.</p>`;
+  } else {
+    reco = `<p style="font-size:.9rem;color:var(--sig-red);font-weight:600;margin-bottom:8px">Se recomienda precaución y análisis reforzado</p>
+      <p style="font-size:.85rem;color:var(--n700)">Los indicadores agronómicos y de exposición sugieren un nivel de riesgo elevado. Se recomienda evaluar garantías adicionales, reducir el monto solicitado, o condicionar el avance a la mejora de los indicadores productivos en la próxima campaña.</p>`;
+  }
+  document.getElementById('recoContent').innerHTML = reco;
+}
+
+
+function renderModal(client, scoring) {
+  document.getElementById('modalBody').innerHTML = `
+    <p style="font-size:.9rem;color:var(--n700);margin-bottom:var(--sp-md)">La precalificación se construye integrando cinco capas de información agronómica y financiera:</p>
+    <div class="method-block"><strong>1. Historial productivo y rendimiento</strong><p>Se analiza el rendimiento promedio ponderado del cliente en las últimas campañas y se compara con los promedios zonales del departamento (${client.establecimientos[0]?.dept || ''}). Peso: 30%</p></div>
+    <div class="method-block"><strong>2. Consistencia de prácticas agronómicas</strong><p>Se evalúa la rotación de cultivos, la diversificación del mix productivo y la continuidad del uso agrícola. Peso: 15%</p></div>
+    <div class="method-block"><strong>3. Señales actuales del territorio</strong><p>Se incorpora condición vegetativa (NDVI), estrés hídrico y estado general de los lotes al momento de corte. Peso: 20%</p></div>
+    <div class="method-block"><strong>4. Indicadores financieros básicos</strong><p>Ratio de deuda actual, cobertura patrimonial estimada e historial crediticio. Peso: 20%</p></div>
+    <div class="method-block"><strong>5. Proyección y sustentabilidad</strong><p>Tendencia de rendimiento proyectado, señal de sustentabilidad ambiental y antigüedad del vínculo comercial. Peso: 15%</p></div>
+    <div style="margin-top:16px;padding:12px;background:var(--n50);border-radius:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:.82rem;font-weight:600;color:var(--n700)">Score calculado</span>
+        <span style="font-size:1.2rem;font-weight:800;color:var(--n900)">${scoring.score}/100</span>
+      </div>
+      <div style="height:8px;background:var(--n200);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${scoring.score}%;background:${scoring.color === 'green' ? 'var(--sig-green)' : scoring.color === 'yellow' ? 'var(--sig-yellow)' : 'var(--sig-red)'};border-radius:4px;transition:width .6s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--n400);margin-top:4px">
+        <span>0 — Observada</span><span>45 — Con revisión</span><span>70 — Favorable</span><span>100</span>
+      </div>
+    </div>
+    <p style="font-size:.8rem;color:var(--n400);margin-top:var(--sp-md)">Esta precalificación es orientativa y no reemplaza el proceso formal de evaluación crediticia. Los datos se actualizan cada 5-10 días. Corte: ${formatDate(META.lastUpdate)}.</p>`;
+}
+
+/* ============================================================
+   GEO MAP — Componente de Georeferencia Interactivo
+   ============================================================
+   Mapa Leaflet con círculos por departamento, click-to-pin,
+   panel de georeferencia y selector de tiles.
+   
+   Dependencias:
+     - Leaflet 1.9.4 (CDN, requiere internet para tiles)
+     - data.js → DEPTS, PROV_COLORS, FMT
+   
+   API pública:
+     GeoMap.render()              — inicializa el mapa
+     GeoMap.placePin(lat, lng)    — coloca pin programáticamente
+     GeoMap.clearPin()            — remueve el pin
+     GeoMap.highlightDept(name)   — flyTo + highlight un departamento
+   ============================================================ */
+
+const GeoMap = (function () {
+  'use strict';
+
+  let map = null;
+  let pin = null;
+  let circles = {};         // deptName → L.circle
+  let currentTile = null;
+  let highlightedDept = null;
+
+  /* ---- Tile layers ---- */
+  const TILES = {
+    terrain:   { url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',       attr: '© OpenTopoMap' },
+    satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: '© Esri' },
+    osm:       { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',      attr: '© OpenStreetMap' }
+  };
+
+  /* ---- Pin icon ---- */
+  const PIN_ICON = L.icon({
+    iconUrl: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
+        <defs>
+          <filter id="s" x="-20%" y="-10%" width="140%" height="130%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".3"/>
+          </filter>
+        </defs>
+        <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#c62828" filter="url(#s)"/>
+        <circle cx="14" cy="13" r="5.5" fill="white"/>
+        <circle cx="14" cy="13" r="2.5" fill="#c62828"/>
+      </svg>
+    `),
+    iconSize: [28, 40],
+    iconAnchor: [14, 40],
+    popupAnchor: [0, -35]
+  });
+
+
+  /* ---- Nearest department by euclidean distance ---- */
+  function findNearestDept(lat, lng) {
+    let best = null, bestDist = Infinity;
+    DEPTS.forEach(d => {
+      const dist = Math.sqrt(Math.pow(d.lat - lat, 2) + Math.pow(d.lng - lng, 2));
+      if (dist < bestDist) { bestDist = dist; best = d; }
+    });
+    return bestDist <= 1.5 ? best : null;
+  }
+
+
+  /* ---- Update pin panel ---- */
+  function updatePinPanel(lat, lng) {
+    const nearest = findNearestDept(lat, lng);
+    const el = document.getElementById('geomapPinContent');
+    if (!el) return;
+
+    el.innerHTML = `
+      <div class="geomap-pin-grid">
+        <div>
+          <div class="geomap-pin-field__label">Latitud</div>
+          <div class="geomap-pin-field__value geomap-pin-field__value--mono">${lat.toFixed(6)}°</div>
+        </div>
+        <div>
+          <div class="geomap-pin-field__label">Longitud</div>
+          <div class="geomap-pin-field__value geomap-pin-field__value--mono">${lng.toFixed(6)}°</div>
+        </div>
+        <div>
+          <div class="geomap-pin-field__label">Provincia</div>
+          <div class="geomap-pin-field__value">${nearest ? nearest.prov : 'Fuera de cobertura'}</div>
+        </div>
+        <div>
+          <div class="geomap-pin-field__label">Departamento</div>
+          <div class="geomap-pin-field__value">${nearest ? nearest.name : '—'}</div>
+        </div>
+      </div>
+      <div class="geomap-pin-actions">
+        <button class="btn btn--secondary btn--sm" id="geomapClearPin">Quitar pin</button>
+        <button class="btn btn--primary btn--sm" id="geomapUseFilter">Usar como filtro</button>
+      </div>`;
+
+    document.getElementById('geomapClearPin').addEventListener('click', clearPin);
+    document.getElementById('geomapUseFilter').addEventListener('click', () => {
+      if (!nearest) return;
+      // Try to set province/dept selects if they exist in the page
+      const selProv = document.getElementById('selProvincia');
+      const selDept = document.getElementById('selDepartamento');
+      if (selProv) {
+        selProv.value = nearest.prov;
+        selProv.dispatchEvent(new Event('change'));
+        setTimeout(() => {
+          if (selDept) { selDept.value = nearest.name; selDept.dispatchEvent(new Event('change')); }
+        }, 50);
+      }
+    });
+  }
+
+
+  function showEmptyPinPanel() {
+    const el = document.getElementById('geomapPinContent');
+    if (el) {
+      el.innerHTML = '<div class="geomap-pin-card__empty">Hacé click en el mapa para marcar un punto de referencia. Se mostrarán las coordenadas y la provincia/departamento más cercano.</div>';
+    }
+  }
+
+
+  /* ---- Place pin ---- */
+  function placePin(lat, lng) {
+    if (!map) return;
+    if (pin) map.removeLayer(pin);
+    pin = L.marker([lat, lng], { icon: PIN_ICON, draggable: true }).addTo(map);
+    pin.on('dragend', () => {
+      const p = pin.getLatLng();
+      updatePinPanel(p.lat, p.lng);
+    });
+    updatePinPanel(lat, lng);
+  }
+
+
+  /* ---- Clear pin ---- */
+  function clearPin() {
+    if (pin && map) { map.removeLayer(pin); pin = null; }
+    showEmptyPinPanel();
+  }
+
+
+  /* ---- Highlight department ---- */
+  function highlightDept(deptName) {
+    // Reset previous
+    if (highlightedDept && circles[highlightedDept]) {
+      const d = DEPTS.find(x => x.name === highlightedDept);
+      if (d) {
+        const hasData = d.ha > 0;
+        circles[highlightedDept].setStyle({
+          fillOpacity: hasData ? 0.2 : 0.08,
+          weight: hasData ? 2 : 1
+        });
+      }
+    }
+
+    const dept = DEPTS.find(x => x.name === deptName);
+    if (!dept || !circles[deptName] || !map) return;
+
+    highlightedDept = deptName;
+    map.flyTo([dept.lat, dept.lng], 9, { duration: 0.8 });
+    circles[deptName].setStyle({ fillOpacity: 0.45, weight: 3 });
+  }
+
+
+  /* ---- Switch tiles ---- */
+  function switchTile(key) {
+    if (!map || !TILES[key]) return;
+    if (currentTile) map.removeLayer(currentTile);
+    currentTile = L.tileLayer(TILES[key].url, { attribution: TILES[key].attr, maxZoom: 18 }).addTo(map);
+
+    document.querySelectorAll('.geomap-tile-btn').forEach(b => {
+      b.classList.toggle('geomap-tile-btn--active', b.dataset.tile === key);
+    });
+  }
+
+
+  /* ---- Build legend ---- */
+  function buildLegend() {
+    const el = document.getElementById('geomapLegendItems');
+    if (!el) return;
+    let html = '';
+    Object.entries(PROV_COLORS).forEach(([prov, col]) => {
+      html += `<div class="geomap-legend__item"><div class="geomap-legend__swatch" style="background:${col.fill}"></div>${prov}</div>`;
+    });
+    el.innerHTML = html;
+  }
+
+
+  /* ---- Render ---- */
+  function render() {
+    if (typeof L === 'undefined') {
+      // Leaflet not loaded — show fallback
+      const container = document.getElementById('geomapMap');
+      if (container) {
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--n400);font-size:.85rem;text-align:center;padding:2rem">Mapa no disponible sin conexión a internet.<br>Las tiles requieren acceso a CDN.</div>';
+      }
+      return;
+    }
+
+    // Init map
+    map = L.map('geomapMap', {
+      center: [-33.5, -61.5],
+      zoom: 7,
+      minZoom: 5,
+      maxZoom: 15
+    });
+
+    // Default tile
+    switchTile('terrain');
+
+    // Draw dept circles
+    DEPTS.forEach(d => {
+      const pc = PROV_COLORS[d.prov] || { fill: '#999', stroke: '#666' };
+      const hasData = d.ha > 0;
+      const radius = hasData ? Math.max(6000, Math.min(25000, Math.sqrt(d.ha) * 400)) : 5000;
+
+      const circle = L.circle([d.lat, d.lng], {
+        radius: radius,
+        fillColor: pc.fill,
+        color: pc.stroke,
+        fillOpacity: hasData ? 0.2 : 0.08,
+        weight: hasData ? 2 : 1,
+        dashArray: hasData ? null : '4,4'
+      }).addTo(map);
+
+      // Popup
+      const popupContent = `<div style="font-size:12px;line-height:1.4"><strong>${d.name}</strong><br><span style="color:#777;font-size:11px">${d.prov}</span><br>${hasData ? FMT.n(d.ha) + ' ha' : '<span style="color:#999">Sin datos</span>'}</div>`;
+
+      circle.on('mouseover', function () {
+        this.setStyle({ fillOpacity: hasData ? 0.4 : 0.15, weight: hasData ? 3 : 1.5 });
+        this.bindPopup(popupContent, { closeButton: false }).openPopup();
+      });
+      circle.on('mouseout', function () {
+        if (highlightedDept !== d.name) {
+          this.setStyle({ fillOpacity: hasData ? 0.2 : 0.08, weight: hasData ? 2 : 1 });
+        }
+        this.closePopup();
+      });
+
+      circles[d.name] = circle;
+
+      // Label
+      const labelColor = hasData ? pc.stroke : '#888';
+      L.marker([d.lat, d.lng], {
+        interactive: false,
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="font-size:10px;font-weight:${hasData ? '700' : '400'};color:${labelColor};text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%)">${d.name}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        })
+      }).addTo(map);
+    });
+
+    // Click-to-pin
+    map.on('click', (e) => {
+      placePin(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Build sidebar
+    buildLegend();
+    showEmptyPinPanel();
+
+    // Tile switcher
+    document.querySelectorAll('.geomap-tile-btn').forEach(b => {
+      b.addEventListener('click', () => switchTile(b.dataset.tile));
+    });
+  }
+
+
+  /* ---- Public API ---- */
+  return { render, placePin, clearPin, highlightDept };
+
+})();
+
+/* ============================================================
+   APP — Precalificación Crediticia Agronómica
+   ============================================================
+   Inicialización, estado global y binding de eventos.
+   
+   Dependencias (orden de carga):
+     1. data.js       → datos, formateadores
+     2. scoring.js    → computeScore()
+     3. renderers.js  → render*()
+     4. geomap.js     → GeoMap.*
+     5. app.js        → este archivo
+   ============================================================ */
+
+/* ---- State ---- */
+let ST = { client: null, scoring: null };
+
+
+/* ---- Tab switching ---- */
+function switchTab(id) {
+  document.querySelectorAll('.tabs__tab').forEach(t =>
+    t.classList.toggle('tabs__tab--active', t.dataset.tab === id)
+  );
+  document.querySelectorAll('.tab-content').forEach(c =>
+    c.classList.toggle('tab-content--active', c.id === 'tab-' + id)
+  );
+}
+
+
+/* ---- Modal ---- */
+function toggleModal(show) {
+  document.getElementById('modalScore').classList.toggle('modal-backdrop--open', show);
+}
+
+
+/* ---- Simulate review ---- */
+function simulateReview() {
+  const btn = document.getElementById('btnSimular');
+  btn.textContent = 'Enviando...';
+  btn.disabled = true;
+  setTimeout(() => {
+    document.getElementById('successToast').style.display = 'block';
+    btn.textContent = 'Simular revisión crediticia';
+    btn.disabled = false;
+    document.getElementById('successToast').scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => { document.getElementById('successToast').style.display = 'none'; }, 4000);
+  }, 1200);
+}
+
+
+/* ---- Select client ---- */
+function selectClient(id) {
+  const client = CLIENTS.find(c => c.id === id);
+  if (!client) return;
+
+  ST.client = client;
+  document.getElementById('searchDropdown').classList.remove('search-dropdown--open');
+  document.getElementById('searchInput').value = client.name;
+
+  // Breadcrumb
+  document.getElementById('bcSep2').style.display = '';
+  document.getElementById('bcDetail').style.display = '';
+  document.getElementById('bcDetail').textContent = client.name;
+
+  // Show loading
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('loadingState').style.display = '';
+
+  setTimeout(() => {
+    ST.scoring = computeScore(client);
+    document.getElementById('loadingState').style.display = 'none';
+    renderAll();
+  }, 1100);
+}
+
+
+/* ---- Master render ---- */
+function renderAll() {
+  const c = ST.client, s = ST.scoring;
+  document.getElementById('results').style.display = '';
+
+  renderClientHeader(c);
+  renderKPIs(c, s);
+  renderScoreCard(s);
+  renderSemaforos(s);
+  renderTemporal(c);
+  renderBenchmark(c);
+  renderFactors(c, s);
+  renderRisksOpps(c, s);
+  renderInsights(c, s);
+  renderRecommendation(c, s);
+  renderModal(c, s);
+  switchTab('temporal');
+
+  // Highlight client dept on map
+  const dept = c.establecimientos[0]?.dept;
+  if (dept && typeof GeoMap !== 'undefined') {
+    GeoMap.highlightDept(dept);
+  }
+}
+
+
+/* ============================================================
+   DOM READY
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Dates
+  const d = formatDate(META.lastUpdate);
+  document.getElementById('headerDate').textContent = d;
+  document.getElementById('footerDate').textContent = d;
+
+  // ---- Search ----
+  const input = document.getElementById('searchInput');
+  const dropdown = document.getElementById('searchDropdown');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (q.length < 2) { dropdown.classList.remove('search-dropdown--open'); return; }
+
+    const matches = CLIENTS.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.cuit.includes(q) ||
+      c.establecimientos.some(e => e.name.toLowerCase().includes(q))
+    );
+
+    if (!matches.length) {
+      dropdown.innerHTML = '<div class="search-dropdown__empty">No se encontraron resultados</div>';
+    } else {
+      dropdown.innerHTML = matches.map(c => {
+        const totalHa = c.establecimientos.reduce((s, e) => s + e.ha, 0);
+        return `<div class="search-dropdown__item" data-id="${c.id}">
+          <div class="search-dropdown__name">${c.name}</div>
+          <div class="search-dropdown__meta">CUIT ${c.cuit} · ${c.region}, ${c.provincia} · ${FMT.ha(totalHa)}</div>
+        </div>`;
+      }).join('');
+
+      dropdown.querySelectorAll('.search-dropdown__item').forEach(item => {
+        item.addEventListener('click', () => selectClient(item.dataset.id));
+      });
+    }
+    dropdown.classList.add('search-dropdown--open');
+  });
+
+  input.addEventListener('focus', () => {
+    if (input.value.trim().length >= 2) input.dispatchEvent(new Event('input'));
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('searchBox').contains(e.target))
+      dropdown.classList.remove('search-dropdown--open');
+  });
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tabs__tab').forEach(t =>
+    t.addEventListener('click', () => switchTab(t.dataset.tab))
+  );
+
+  // ---- Modal ----
+  document.getElementById('btnScore').addEventListener('click', () => toggleModal(true));
+  document.getElementById('btnCloseModal').addEventListener('click', () => toggleModal(false));
+  document.getElementById('modalScore').addEventListener('click', e => {
+    if (e.target.classList.contains('modal-backdrop')) toggleModal(false);
+  });
+
+  // ---- Actions ----
+  document.getElementById('btnSimular').addEventListener('click', simulateReview);
+  document.getElementById('btnExportar').addEventListener('click', () => alert('Ficha exportada como PDF (simulación).'));
+
+  // ---- Geo Map ----
+  if (typeof GeoMap !== 'undefined') {
+    GeoMap.render();
+  }
+});
+</script>
+  <div class="bold-back-bar">
+    <a href="index.html" class="bold-back-bar__link">
+      <span class="bold-back-bar__chev">&lt;</span> Volver a la suite BoldOS
+    </a>
+    <span class="bold-back-bar__motto">El dato es <em>nuestro faro</em></span>
+  </div>
+
+</body>
+</html>
